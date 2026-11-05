@@ -1,0 +1,91 @@
+<ion-header class="ion-no-border">
+  <div class="mf-modal-toolbar">
+    <button type="button" (click)="cancel()">Cancelar</button>
+    <span class="title">{{ isEdit() ? 'Editar transação' : 'Nova transação' }}</span>
+    <button type="button" class="strong" (click)="save()">Salvar</button>
+  </div>
+</ion-header>
+
+<ion-content>
+  <div class="mf-modal-body">
+    <div class="pad">
+      <ion-segment mode="ios" [value]="type()" (ionChange)="setType($any($event).detail.value)">
+        <ion-segment-button value="expense">Despesa</ion-segment-button>
+        <ion-segment-button value="income">Receita</ion-segment-button>
+      </ion-segment>
+      <mf-currency-input [(value)]="amount" [tone]="type()" [label]="type() === 'expense' ? 'Valor da despesa' : 'Valor da receita'"></mf-currency-input>
+      @if (submitted() && errors().amount) { <p class="err">{{ errors().amount }}</p> }
+    </div>
+
+    <div class="pad">
+      <div class="mf-group">
+        <label class="mf-row" [class.invalid]="submitted() && errors().description">
+          <span class="lead lead-desc"><ion-icon name="document-text-outline"></ion-icon></span>
+          <span class="label">Descrição</span>
+          <input class="value" type="text" [placeholder]="submitted() && errors().description ? 'Obrigatório' : 'Ex.: Mercado'" maxlength="80" enterkeyhint="done"
+            [ngModel]="description()" (ngModelChange)="description.set($event)" />
+        </label>
+        <button class="mf-row" type="button" [class.invalid]="submitted() && errors().category" (click)="pickCategory()">
+          <span class="lead" [style.--lead]="category() ? 'var(--mf-category-' + category()!.color + ')' : 'var(--mf-text-tertiary)'"><ion-icon name="pricetag-outline"></ion-icon></span>
+          <span class="label">Categoria</span>
+          <span class="value">{{ category()?.name ?? 'Selecionar' }}</span>
+          <ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="pickAccount()">
+          <span class="lead" [style.--lead]="sourceColor()"><ion-icon [name]="sourceIcon()"></ion-icon></span>
+          <span class="label">{{ card() ? 'Cartão' : 'Conta' }}</span>
+          <span class="value">{{ sourceLabel() }}</span>
+          <ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        @if (card() && !isEdit()) {
+          <button class="mf-row" type="button" (click)="pickParts()">
+            <span class="lead" style="--lead: var(--mf-category-moradia)"><ion-icon name="layers-outline"></ion-icon></span>
+            <span class="label">Parcelas</span>
+            <span class="value">{{ parts() === 1 ? 'À vista' : parts() + 'x' }}</span>
+            <ion-icon class="chev" name="chevron-forward"></ion-icon>
+          </button>
+        }
+        <button class="mf-row" type="button" (click)="dateOpen.set(true)">
+          <span class="lead lead-date"><ion-icon name="calendar-outline"></ion-icon></span>
+          <span class="label">Data</span>
+          <span class="value">{{ dateLabel() }}</span>
+          <ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <div class="mf-row">
+          <span class="lead lead-paid"><ion-icon name="checkmark-circle-outline"></ion-icon></span>
+          <span class="label grow">{{ type() === 'income' ? 'Recebido' : 'Pago' }}</span>
+          <ion-toggle [checked]="paid()" (ionChange)="paid.set($any($event).detail.checked)" aria-label="Pago"></ion-toggle>
+        </div>
+      </div>
+      @if (submitted() && (errors().description || errors().category || errors().account)) {
+        <p class="err">Preencha {{ missing() }} para salvar.</p>
+      }
+    </div>
+
+    <div class="pad">
+      <p class="mf-label">Observações (opcional)</p>
+      <div class="mf-textarea">
+        <textarea rows="2" maxlength="280" placeholder="Adicione uma observação" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+      </div>
+    </div>
+
+    <div class="pad">
+      <ion-button expand="block" (click)="save()">
+        {{ isEdit() ? 'Salvar alterações' : type() === 'expense' ? 'Salvar despesa' : 'Salvar receita' }}
+      </ion-button>
+    </div>
+  </div>
+
+  <ion-modal [isOpen]="dateOpen()" (didDismiss)="dateOpen.set(false)" [breakpoints]="[0, 0.62]" [initialBreakpoint]="0.62" class="mf-sheet">
+    <ng-template>
+      <div class="dt-wrap">
+        <div class="mf-modal-toolbar">
+          <span></span><span class="title">Data</span>
+          <button type="button" class="strong" (click)="dateOpen.set(false)">OK</button>
+        </div>
+        <ion-datetime presentation="date" locale="pt-BR" [firstDayOfWeek]="0" [value]="date()" [max]="maxDate"
+          (ionChange)="onDate($any($event).detail.value)"></ion-datetime>
+      </div>
+    </ng-template>
+  </ion-modal>
+</ion-content>

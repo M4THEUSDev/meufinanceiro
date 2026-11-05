@@ -1,0 +1,99 @@
+<ion-content [fullscreen]="true" [scrollY]="false">
+  <div class="page">
+    @if (index() < 2) {
+      <button class="mf-reset skip t-headline" type="button" (click)="finish()">Pular</button>
+    }
+
+    <div class="track" #track (scroll)="onScroll()">
+      <!-- 1 · Organize suas finanças -->
+      <section class="slide">
+        <div class="illustration">
+          <div class="glow"></div>
+          <div class="halo"></div>
+          <div class="balance">
+            <div class="decor d1"></div>
+            <div class="decor d2"></div>
+            <div class="row">
+              <span class="lbl"><ion-icon name="wallet-outline"></ion-icon>Saldo total</span>
+              <span class="eye"><ion-icon name="eye-outline"></ion-icon></span>
+            </div>
+            <p class="amt">R$ 24.583,40</p>
+            <div class="row">
+              <span class="delta"><ion-icon name="trending-up"></ion-icon>+ 4,2% vs. outubro</span>
+              <span class="accs">4 contas <ion-icon name="chevron-forward"></ion-icon></span>
+            </div>
+          </div>
+          <div class="summary s1">
+            <div class="sh"><span class="ic inc"><ion-icon name="arrow-down"></ion-icon></span><span class="t-footnote-sb c-secondary">Receitas</span></div>
+            <p class="t-headline c-success">R$ 9.850,00</p>
+            <p class="t-caption1 c-tertiary">+12% vs. out</p>
+          </div>
+          <div class="summary s2">
+            <div class="sh"><span class="ic exp"><ion-icon name="arrow-up"></ion-icon></span><span class="t-footnote-sb c-secondary">Despesas</span></div>
+            <p class="t-headline c-danger">R$ 6.214,37</p>
+            <p class="t-caption1 c-tertiary">−3% vs. out</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 · Entenda seus gastos -->
+      <section class="slide">
+        <div class="illustration">
+          <div class="glow"></div>
+          <div class="halo"></div>
+          <div class="chart-card">
+            <mf-donut [segments]="donut" [size]="170">
+              <span class="t-caption1 c-secondary">Despesas</span>
+              <span class="t-amount-medium">R$ 6.214</span>
+            </mf-donut>
+          </div>
+          <span class="badge b-moradia" style="left:30px;top:90px"><ion-icon name="home-outline"></ion-icon>Moradia</span>
+          <span class="badge b-alimentacao" style="left:250px;top:140px"><ion-icon name="restaurant-outline"></ion-icon>Alimentação</span>
+          <span class="badge b-transporte" style="left:40px;top:330px"><ion-icon name="car-outline"></ion-icon>Transporte</span>
+          <span class="badge b-compras" style="left:240px;top:360px"><ion-icon name="bag-handle-outline"></ion-icon>Compras</span>
+        </div>
+      </section>
+
+      <!-- 3 · Conquiste seus objetivos -->
+      <section class="slide">
+        <div class="illustration">
+          <div class="glow"></div>
+          <div class="halo"></div>
+          <div class="goal">
+            <div class="gh">
+              <span class="gi"><ion-icon name="shield-checkmark-outline"></ion-icon></span>
+              <div class="gt">
+                <p class="name">Reserva de emergência</p>
+                <p class="when"><ion-icon name="calendar-outline"></ion-icon>Meta para 12/2027</p>
+              </div>
+              <p class="gp">62%</p>
+            </div>
+            <div class="bar"><div class="fill"></div></div>
+            <div class="ga">
+              <div><p class="k">Acumulado</p><p class="v">R$ 12.400,00</p></div>
+              <div class="r"><p class="k">Objetivo</p><p class="v c-secondary">R$ 20.000,00</p></div>
+            </div>
+            <div class="gbtn"><ion-icon name="add"></ion-icon>Adicionar contribuição</div>
+          </div>
+          <span class="flag"><ion-icon name="flag-outline"></ion-icon></span>
+          <span class="plane"><ion-icon name="airplane-outline"></ion-icon></span>
+        </div>
+      </section>
+    </div>
+
+    <div class="bottom">
+      <div class="dots" role="tablist">
+        @for (s of slides; track $index) {
+          <button class="mf-reset dot" type="button" role="tab" [class.active]="$index === index()" [attr.aria-label]="'Página ' + ($index + 1)" (click)="goTo($index)"></button>
+        }
+      </div>
+      <h1 class="t-title1">{{ slides[index()].title }}</h1>
+      <p class="t-body c-secondary">{{ slides[index()].body }}</p>
+      <div class="spacer"></div>
+      <ion-button expand="block" (click)="next()">{{ index() === 2 ? 'Começar' : 'Continuar' }}</ion-button>
+      @if (index() === 2) {
+        <ion-button expand="block" fill="clear" (click)="finish()">Já tenho uma conta</ion-button>
+      }
+    </div>
+  </div>
+</ion-content>

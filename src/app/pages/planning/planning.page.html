@@ -1,0 +1,64 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Planejamento</ion-title>
+    <ion-buttons slot="end"><button class="mf-reset mf-action" type="button" aria-label="Definir orçamento" (click)="add()"><ion-icon name="add"></ion-icon></button></ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border"><ion-toolbar><ion-title size="large">Planejamento</ion-title></ion-toolbar></ion-header>
+
+  <div class="body">
+    <div class="chips">
+      <button type="button" class="chip on" (click)="pickMonth()">{{ monthLabel() }}<ion-icon name="chevron-down"></ion-icon></button>
+      <button type="button" class="chip" (click)="copyPrevious()">Copiar de {{ prevName() }}</button>
+    </div>
+
+    @if (items().length) {
+      <div class="pad">
+        <div class="mf-card summary">
+          <div class="row">
+            <mf-ring [value]="usedPct()" [color]="ringColor()">
+              <span class="t-amount-medium">{{ (usedPct() * 100).toFixed(0) }}%</span>
+              <span class="t-caption2 c-tertiary">usado</span>
+            </mf-ring>
+            <div class="kv">
+              <div><span class="t-subhead c-secondary">Orçado</span><span class="t-footnote-sb">{{ planned() | money }}</span></div>
+              <div><span class="t-subhead c-secondary">Gasto</span><span class="t-footnote-sb c-danger">{{ spent() | money }}</span></div>
+              <div><span class="t-subhead c-secondary">Restante</span><span class="t-footnote-sb" [class.c-success]="remaining() >= 0" [class.c-danger]="remaining() < 0">{{ remaining() | money }}</span></div>
+            </div>
+          </div>
+          <p class="pace t-footnote c-secondary"><ion-icon name="time-outline"></ion-icon>{{ pace() }}</p>
+        </div>
+      </div>
+
+      @if (alert(); as a) {
+        <div class="pad">
+          <div class="banner">
+            <ion-icon name="warning-outline"></ion-icon>
+            <div><p class="t-subhead-sb">Atenção aos limites</p><p class="t-footnote c-secondary">{{ a }}</p></div>
+          </div>
+        </div>
+      }
+
+      <div class="pad list">
+        <mf-section-header title="Por categoria" action="Editar" (actionClick)="edit()"></mf-section-header>
+        @for (i of items(); track i.b.id) {
+          <mf-budget-progress [budget]="i.b" [month]="month()" (click)="open(i.b.id)"></mf-budget-progress>
+        }
+      </div>
+    } @else {
+      <div class="pad">
+        <div class="mf-card mf-empty">
+          <ion-icon name="pie-chart-outline"></ion-icon>
+          <p class="t-headline">Nenhum orçamento definido</p>
+          <p class="t-footnote">Defina limites por categoria para acompanhar seus gastos ao longo do mês.</p>
+        </div>
+      </div>
+    }
+
+    <div class="pad">
+      <ion-button expand="block" class="tonal" (click)="add()"><ion-icon slot="start" name="add"></ion-icon>Definir novo orçamento</ion-button>
+    </div>
+  </div>
+</ion-content>

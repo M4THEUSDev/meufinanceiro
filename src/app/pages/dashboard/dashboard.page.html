@@ -1,0 +1,153 @@
+<ion-header class="ion-no-border mf-status">
+  <ion-toolbar class="status-only"></ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
+  @if (loading()) {
+    <mf-dashboard-skeleton class="skeleton"></mf-dashboard-skeleton>
+  } @else {
+  <div class="mf-stack">
+    <!-- Header -->
+    <div class="header">
+      <button class="mf-reset avatar" type="button" (click)="go('/tabs/mais/configuracoes')" aria-label="Perfil">{{ initials() }}</button>
+      <div class="greet">
+        <p class="t-footnote c-secondary">{{ greeting }}</p>
+        <p class="t-title3">{{ firstName() }}</p>
+      </div>
+      <button class="mf-reset round" type="button" (click)="store.toggleHidden()" [attr.aria-label]="store.hidden() ? 'Mostrar valores' : 'Ocultar valores'">
+        <ion-icon [name]="store.hidden() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+      </button>
+      <button class="mf-reset round" type="button" (click)="notifications()" aria-label="Notificações">
+        <ion-icon name="notifications-outline"></ion-icon>
+        @if (notificationCount()) { <span class="badge">{{ notificationCount() }}</span> }
+      </button>
+    </div>
+
+    <mf-month-selector class="pad" [(month)]="month" (monthChange)="onMonthChange()"></mf-month-selector>
+
+    <div class="mf-section">
+      <mf-balance-card [amount]="balance()" [delta]="balanceDelta()" [previousMonthLabel]="prevMonthName()" [accountsCount]="accountsCount()"
+        (accountsClick)="go('/tabs/mais/contas')"></mf-balance-card>
+    </div>
+
+    <!-- Resumo mensal -->
+    <div class="mf-section">
+      <div class="row2">
+        <mf-summary-card type="income" [amount]="summary().income" [caption]="incomeCaption()"></mf-summary-card>
+        <mf-summary-card type="expense" [amount]="summary().expense" [caption]="expenseCaption()"></mf-summary-card>
+      </div>
+      <div class="mf-card result">
+        <div class="result-top">
+          <span class="ic" [class.neg]="summary().net < 0"><ion-icon [name]="summary().net >= 0 ? 'trending-up' : 'trending-down'"></ion-icon></span>
+          <div class="grow">
+            <p class="t-footnote-sb c-secondary">Resultado do mês</p>
+            <p class="t-amount-medium" [class.c-primary-shade]="summary().net >= 0" [class.c-danger]="summary().net < 0">{{ summary().net | money: 'sign' }}</p>
+          </div>
+          @if (summary().income > 0) {
+            <span class="mf-pill rate" [class.neg]="savingsRate() < 0">{{ pct(savingsRate(), 1) }} {{ savingsRate() >= 0 ? 'poupado' : 'no vermelho' }}</span>
+          }
+        </div>
+        <mf-progress-bar [value]="spentRate() / 100" [color]="spentRate() > 100 ? 'var(--ion-color-danger)' : 'var(--ion-color-primary)'"></mf-progress-bar>
+        <div class="legend t-caption1">
+          <span class="c-secondary">Gasto {{ pct(spentRate()) }} da renda</span>
+          <span class="c-tertiary">Meta de economia: {{ store.settings().savingsGoalPct }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="mf-section">
+      <div class="mf-card chart">
+        <div class="ch-head"><p class="t-headline">Receitas x Despesas</p><p class="t-footnote c-secondary">6 meses</p></div>
+        <div class="ch-legend t-caption1 c-secondary">
+          <span><i class="dot inc"></i>Receitas</span><span><i class="dot exp"></i>Despesas</span>
+        </div>
+        <mf-bar-chart [data]="chart()" [(activeIndex)]="chartIndex"></mf-bar-chart>
+      </div>
+
+      <div class="mf-card wealth">
+        <div class="ch-head">
+          <div>
+            <p class="t-headline">Evolução do patrimônio</p>
+            <p class="t-footnote c-secondary">Saldo consolidado · 6 meses</p>
+          </div>
+          <span class="mf-pill delta" [class.neg]="wealthDelta() < 0">
+            <ion-icon [name]="wealthDelta() >= 0 ? 'trending-up' : 'trending-down'"></ion-icon>{{ wealthDelta() >= 0 ? '+' : '−' }}{{ pct(Math.abs(wealthDelta()), 1) }}
+          </span>
+        </div>
+        <mf-sparkline [values]="wealthValues()" [color]="wealthDelta() >= 0 ? 'var(--ion-color-success)' : 'var(--ion-color-danger)'"></mf-sparkline>
+        <div class="range t-caption1">
+          <span class="c-tertiary">{{ wealthFirstLabel() }} · {{ wealth()[0]?.value ?? 0 | money: 'int' }}</span>
+          <span class="strong">{{ wealthLastLabel() }} · {{ wealth().at(-1)?.value ?? 0 | money: 'int' }}</span>
+        </div>
+      </div>
+
+      <div class="mf-card cats">
+        <div class="ch-head">
+          <p class="t-headline">Despesas por categoria</p>
+          <button class="mf-reset t-subhead-sb link" type="button" (click)="go('/tabs/mais/relatorios')">Ver relatório</button>
+        </div>
+        @if (spend().length) {
+          <div class="cats-body">
+            <mf-donut [segments]="donut()" [size]="124">
+              <span class="t-caption2 c-tertiary">Total</span>
+              <span class="t-footnote-sb">{{ summary().expense | money: 'int' }}</span>
+            </mf-donut>
+            <div class="cats-legend">
+              @for (s of spend(); track s.name) {
+                <div class="lg"><i class="dot" [style.background]="'var(--mf-category-' + s.color + ')'"></i><span class="t-footnote grow ellipsis">{{ s.name }}</span><span class="t-footnote-sb c-secondary">{{ pct(s.share * 100) }}</span></div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="mf-empty"><ion-icon name="pie-chart-outline"></ion-icon><p class="t-footnote">Sem despesas neste mês.</p></div>
+        }
+      </div>
+    </div>
+
+    <!-- Últimas transações -->
+    <div class="mf-section">
+      <mf-section-header title="Últimas transações" action="Ver todas" (actionClick)="go('/tabs/transacoes')"></mf-section-header>
+      @if (latest().length) {
+        <div class="mf-list">
+          @for (t of latest(); track t.id) { <mf-transaction-item [tx]="t" (click)="openTx(t.id)"></mf-transaction-item> }
+        </div>
+      } @else {
+        <div class="mf-card mf-empty">
+          <ion-icon name="receipt-outline"></ion-icon>
+          <p class="t-headline">Nenhuma transação ainda</p>
+          <p class="t-footnote">Toque no + para registrar sua primeira receita ou despesa.</p>
+          <button class="mf-reset t-subhead-sb link" type="button" (click)="add()">Adicionar transação</button>
+        </div>
+      }
+    </div>
+
+    <!-- Próximos vencimentos -->
+    @if (bills().length) {
+      <div class="mf-section">
+        <mf-section-header title="Próximos vencimentos" action="Ver agenda" (actionClick)="notifications()"></mf-section-header>
+        <div class="mf-list">
+          @for (b of bills(); track b.id) { <mf-bill-item [bill]="b" (click)="openBill(b.kind, b.refId)"></mf-bill-item> }
+        </div>
+      </div>
+    }
+
+    <!-- Metas financeiras -->
+    <div class="mf-section">
+      <mf-section-header title="Metas financeiras" action="Ver todas" (actionClick)="go('/tabs/mais/metas')"></mf-section-header>
+      @if (goals().length) {
+        <div class="carousel">
+          @for (g of goals(); track g.id) { <mf-goal-card [goal]="g" (click)="go('/tabs/mais/metas/' + g.id)"></mf-goal-card> }
+        </div>
+      } @else {
+        <div class="mf-card mf-empty">
+          <ion-icon name="flag-outline"></ion-icon>
+          <p class="t-footnote">Crie uma meta para acompanhar seus objetivos.</p>
+          <button class="mf-reset t-subhead-sb link" type="button" (click)="go('/tabs/mais/metas')">Criar meta</button>
+        </div>
+      }
+    </div>
+  </div>
+  }
+</ion-content>

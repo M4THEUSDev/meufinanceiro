@@ -1,0 +1,29 @@
+ion-content { --background: var(--ion-background-color); }
+.content {
+  min-height: 100%; display: flex; flex-direction: column; gap: 24px;
+  padding: calc(env(safe-area-inset-top) + 24px) 24px calc(env(safe-area-inset-bottom) + 16px);
+}
+.brand { display: flex; flex-direction: column; gap: 16px; }
+.logo { width: 64px; height: 64px; border-radius: 16px; background: var(--ion-color-primary); display: grid; place-items: center; box-shadow: var(--mf-elevation-brand); }
+.titles { display: flex; flex-direction: column; gap: 6px; }
+h1, p { margin: 0; }
+.form { display: flex; flex-direction: column; gap: 16px; }
+.input { display: flex; flex-direction: column; gap: 6px; }
+.field {
+  height: 50px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-radius: 12px;
+  background: var(--ion-card-background); border: 1px solid var(--ion-border-color); transition: border-color 150ms;
+  ion-icon { font-size: 20px; color: var(--mf-text-secondary); flex: 0 0 auto; }
+  input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 17px; letter-spacing: -0.17px; color: var(--ion-text-color); }
+  input::placeholder { color: var(--mf-text-tertiary); }
+}
+.field.focus { border: 2px solid var(--ion-color-primary); padding: 0 15px; ion-icon:first-child { color: var(--ion-color-primary); } }
+.field.invalid { border: 2px solid var(--ion-color-danger); padding: 0 15px; }
+.eye { display: grid; place-items: center; width: 32px; height: 32px; margin-right: -6px; }
+.err { color: var(--ion-color-danger); }
+.forgot { display: flex; justify-content: flex-end; button { color: var(--ion-color-primary-shade); min-height: 32px; } }
+.actions { display: flex; flex-direction: column; gap: 12px; }
+.divider { display: flex; align-items: center; gap: 12px; span { flex: 1; height: 1px; background: var(--ion-border-color); } em { font-style: normal; } }
+ion-button.tonal { --background: var(--ion-color-primary-tint); --color: var(--ion-color-primary-shade); --background-activated: var(--ion-color-primary-tint); ion-icon { font-size: 20px; margin-right: 8px; } }
+ion-spinner { width: 22px; height: 22px; }
+.hint { display: flex; align-items: center; gap: 6px; ion-icon { font-size: 14px; flex: 0 0 auto; } }
+.legal { margin-top: auto; text-align: center; padding: 0 16px; a { color: var(--mf-text-secondary); text-decoration: underline; } }
