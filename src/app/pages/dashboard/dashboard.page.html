@@ -4,6 +4,9 @@
 
 <ion-content [fullscreen]="true" class="mf-page">
   <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
+  @if (loading()) {
+    <mf-dashboard-skeleton class="skeleton"></mf-dashboard-skeleton>
+  } @else {
   <div class="mf-stack">
     <!-- Header -->
     <div class="header">
@@ -146,4 +149,5 @@
       }
     </div>
   </div>
+  }
 </ion-content>

@@ -338,3 +338,4 @@ ion-toast.mf-toast-info::part(icon) { color: var(--ion-color-primary); backgroun
 ion-toast.mf-toast::part(header) { font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: -0.15px; color: var(--ion-text-color); }
 ion-toast.mf-toast::part(message) { font-size: 13px; line-height: 18px; letter-spacing: -0.13px; color: var(--mf-text-secondary); }
 ion-toast.mf-toast::part(button) { font-weight: 600; font-size: 15px; text-transform: none; }
+ion-alert .alert-button.mf-strong { font-weight: 600; }

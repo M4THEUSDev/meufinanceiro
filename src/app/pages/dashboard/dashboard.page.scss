@@ -57,3 +57,5 @@ p { margin: 0; }
   scrollbar-width: none; &::-webkit-scrollbar { display: none; }
   > * { scroll-snap-align: start; }
 }
+
+.skeleton { padding-top: 8px; }

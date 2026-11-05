@@ -31,7 +31,7 @@ export class AuthService {
       if (e !== s.email.toLowerCase()) return { ok: false, field: 'email', message: 'E-mail não cadastrado neste iPhone.' };
       if (hash !== s.passwordHash) return { ok: false, field: 'password', message: 'Senha incorreta. Tente novamente.' };
     }
-    this.store.updateSettings({ email: e, passwordHash: hash, loggedIn: true, hasLoggedBefore: true });
+    this.store.updateSettings({ email: e, passwordHash: hash, loggedIn: true, hasLoggedBefore: true, lastActiveAt: new Date().toISOString() });
     return { ok: true };
   }
 
@@ -39,7 +39,7 @@ export class AuthService {
     if (!this.faceIdAvailable) return false;
     // Simula o prompt biométrico do sistema
     await new Promise((r) => setTimeout(r, 700));
-    this.store.updateSettings({ loggedIn: true });
+    this.store.updateSettings({ loggedIn: true, lastActiveAt: new Date().toISOString() });
     return true;
   }
 

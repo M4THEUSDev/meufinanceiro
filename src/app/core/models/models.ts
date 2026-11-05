@@ -127,6 +127,8 @@ export interface Settings {
   /** bloqueio do app ao voltar do segundo plano */
   appLock: 'off' | 'immediately' | '1min' | '5min';
   dateFormat: 'DD/MM/AAAA' | 'AAAA-MM-DD';
+  /** última atividade (ISO) — sessão expira após 30 dias sem uso */
+  lastActiveAt?: string;
   /** já fez login neste dispositivo (habilita Face ID) */
   hasLoggedBefore?: boolean;
 }

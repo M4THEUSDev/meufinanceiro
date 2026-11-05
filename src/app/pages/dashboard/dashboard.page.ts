@@ -6,6 +6,7 @@ import { UiService } from '../../core/services/ui.service';
 import { MONTHS, MONTHS_SHORT, addMonths, cap, greeting, initials, monthKey, parseMonthKey, pct } from '../../core/utils/format';
 import { BalanceCardComponent } from '../../shared/components/balance-card.component';
 import { BarChartComponent, BarDatum } from '../../shared/components/bar-chart.component';
+import { DashboardSkeletonComponent } from '../../shared/components/dashboard-skeleton.component';
 import { BillItemComponent } from '../../shared/components/bill-item.component';
 import { DonutComponent } from '../../shared/components/donut.component';
 import { GoalCardComponent } from '../../shared/components/goal-card.component';
@@ -25,7 +26,7 @@ import { openTransactionForm } from '../transactions/transaction-form.modal';
   imports: [
     IonHeader, IonToolbar, IonContent, IonIcon, IonRefresher, IonRefresherContent, MoneyPipe,
     BalanceCardComponent, SummaryCardComponent, ProgressBarComponent, BarChartComponent, SparklineComponent, DonutComponent,
-    SectionHeaderComponent, TransactionItemComponent, BillItemComponent, GoalCardComponent, MonthSelectorComponent,
+    SectionHeaderComponent, TransactionItemComponent, BillItemComponent, GoalCardComponent, MonthSelectorComponent, DashboardSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
@@ -145,7 +146,12 @@ export class DashboardPage {
     await openTransactionForm(this.modal, this.ui, this.store);
   }
 
-  refresh(ev: Event): void {
-    setTimeout(() => (ev.target as HTMLIonRefresherElement).complete(), 500);
+  readonly loading = signal(false);
+
+  async refresh(ev: Event): Promise<void> {
+    this.loading.set(true);
+    await Promise.all([this.store.load(), new Promise((r) => setTimeout(r, 450))]);
+    this.loading.set(false);
+    await (ev.target as HTMLIonRefresherElement).complete();
   }
 }
