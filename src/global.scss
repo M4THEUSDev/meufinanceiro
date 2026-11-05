@@ -307,3 +307,17 @@ ion-button.tonal-danger {
   --color: var(--ion-color-danger);
 }
 ion-button ion-icon[slot='start'] { font-size: 20px; margin-right: 8px; }
+
+/* Header que só reserva a Safe Area (status bar fixa com fundo da página) */
+ion-toolbar.status-only { --min-height: 0; --padding-top: 0; --padding-bottom: 0; --background: var(--ion-background-color); }
+ion-header.mf-status { box-shadow: none; }
+
+/* AppHeader · Large — ação circular (36px) na toolbar */
+.mf-action {
+  width: 36px; height: 36px; border-radius: 999px; background: var(--ion-card-background); color: var(--ion-color-primary);
+  display: grid; place-items: center; margin: 0 8px; box-shadow: var(--mf-elevation-sm);
+}
+.mf-action ion-icon { font-size: 20px; }
+ion-header[collapse='condense'] ion-toolbar { --background: var(--ion-background-color); }
+ion-header[collapse='condense'] ion-title[size='large'] { padding-bottom: 8px; font-weight: 700; }
+ion-toolbar ion-title { color: var(--ion-text-color); }

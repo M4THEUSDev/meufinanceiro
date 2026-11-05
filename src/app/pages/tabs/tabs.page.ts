@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs';
 import { IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs, ModalController } from '@ionic/angular/standalone';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
@@ -11,7 +13,7 @@ import { openTransactionForm } from '../transactions/transaction-form.modal';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ion-tabs>
-      <ion-tab-bar slot="bottom" class="mf-tabbar">
+      <ion-tab-bar slot="bottom" class="mf-tabbar" [class.hidden]="hideBar()">
         <ion-tab-button tab="inicio" href="/tabs/inicio">
           <ion-icon name="home-outline"></ion-icon>
           <ion-label>Início</ion-label>
@@ -49,6 +51,7 @@ import { openTransactionForm } from '../transactions/transaction-form.modal';
       overflow: visible;
       contain: none;
     }
+    ion-tab-bar.hidden { display: none; }
     ion-tab-button { --padding-top: 0; --padding-bottom: 0; flex: 1; }
     ion-tab-button ion-icon { font-size: 26px; margin-bottom: 2px; }
     ion-tab-button ion-label { font-size: 11px; line-height: 13px; font-weight: 500; letter-spacing: -0.11px; margin: 0; }
@@ -67,6 +70,15 @@ export class TabsPage {
   private readonly modal = inject(ModalController);
   private readonly ui = inject(UiService);
   private readonly store = inject(StoreService);
+  private readonly router = inject(Router);
+  /** telas empilhadas sem tab bar (Detalhes da transação, Acompanhar orçamento) */
+  readonly hideBar = signal(false);
+
+  constructor() {
+    const check = (url: string) => this.hideBar.set(/^\/tabs\/(transacoes|planejamento)\/[^/?#]+/.test(url));
+    check(this.router.url);
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => check(e.urlAfterRedirects));
+  }
 
   async add(): Promise<void> {
     this.ui.tap();

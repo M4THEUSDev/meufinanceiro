@@ -34,7 +34,7 @@ export interface MonthSummary {
   net: number;
 }
 
-export const DEFAULT_FILTERS: TxFilters = { period: 'month', type: 'all', categoryIds: [], accountId: null, search: '' };
+export const defaultFilters = (): TxFilters => ({ period: 'month', month: monthKey(new Date()), type: 'all', categoryIds: [], accountId: null, search: '' });
 
 @Injectable({ providedIn: 'root' })
 export class StoreService {
@@ -43,7 +43,7 @@ export class StoreService {
 
   /** mês selecionado no Dashboard / Planejamento (YYYY-MM) */
   readonly selectedMonth = signal(monthKey(new Date()));
-  readonly filters = signal<TxFilters>({ ...DEFAULT_FILTERS });
+  readonly filters = signal<TxFilters>(defaultFilters());
 
   readonly data = this._data.asReadonly();
   readonly settings = computed(() => this._data().settings);
@@ -139,6 +139,46 @@ export class StoreService {
     return this.balances().get(accountId) ?? 0;
   }
 
+  // ---------------- Filtros ----------------
+  /** aplica período/tipo/categorias/conta/busca */
+  filterTransactions(f: TxFilters, includeSearch = true): Transaction[] {
+    const now = new Date();
+    let from = -Infinity;
+    let to = Infinity;
+    if (f.period === 'month') {
+      const [y, m] = f.month.split('-').map(Number);
+      from = new Date(y, m - 1, 1).getTime();
+      to = new Date(y, m, 1).getTime() - 1;
+    } else if (f.period === 'last3') {
+      from = new Date(now.getFullYear(), now.getMonth() - 2, 1).getTime();
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime() - 1;
+    } else if (f.period === 'year') {
+      from = new Date(now.getFullYear(), 0, 1).getTime();
+      to = new Date(now.getFullYear() + 1, 0, 1).getTime() - 1;
+    } else if (f.period === 'custom') {
+      if (f.from) from = new Date(`${f.from}T00:00:00`).getTime();
+      if (f.to) to = new Date(`${f.to}T23:59:59`).getTime();
+    }
+    const q = includeSearch ? f.search.trim().toLowerCase() : '';
+    const qNum = q.replace(/[^\d,.]/g, '');
+    return this.transactions().filter((t) => {
+      const ts = new Date(t.date).getTime();
+      if (ts < from || ts > to) return false;
+      if (f.type !== 'all' && t.type !== f.type) return false;
+      if (f.categoryIds.length && !f.categoryIds.includes(t.categoryId)) return false;
+      if (f.accountId && t.accountId !== f.accountId) return false;
+      if (q) {
+        const cat = this.category(t.categoryId)?.name.toLowerCase() ?? '';
+        const amount = t.amount.toFixed(2).replace('.', ',');
+        const amountBr = t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const textHit = t.description.toLowerCase().includes(q) || cat.includes(q) || (t.notes ?? '').toLowerCase().includes(q);
+        const numHit = !!qNum && (amount.includes(qNum) || amountBr.includes(qNum));
+        if (!textHit && !numHit) return false;
+      }
+      return true;
+    });
+  }
+
   // ---------------- Agregações ----------------
   txOfMonth(key: string): Transaction[] {
     return this.transactions().filter((t) => monthKey(new Date(t.date)) === key);
@@ -205,8 +245,36 @@ export class StoreService {
     });
   }
 
+  /**
+   * Orçamentos vigentes no mês: para cada categoria vale o orçamento específico do mês
+   * ou, na falta dele, o recorrente mais recente iniciado até o mês.
+   */
   budgetsFor(key: string): Budget[] {
-    return this.budgets().filter((b) => (b.recurring ? b.month <= key : b.month === key));
+    const byCat = new Map<string, Budget>();
+    for (const b of this.budgets()) {
+      if (b.month > key) continue;
+      if (!b.recurring && b.month !== key) continue;
+      const cur = byCat.get(b.categoryId);
+      const score = (x: Budget) => (x.month === key && !x.recurring ? '9999-99' : x.month);
+      if (!cur || score(b) >= score(cur)) byCat.set(b.categoryId, b);
+    }
+    return [...byCat.values()].filter((b) => this.category(b.categoryId) && b.limit > 0);
+  }
+
+  /** média de gasto da categoria nos `n` meses anteriores a `key` */
+  categoryAverage(categoryId: string, key: string, n = 3): number {
+    let total = 0;
+    for (let i = 1; i <= n; i++) total += this.spentInCategory(categoryId, addMonths(key, -i));
+    return round2(total / n);
+  }
+
+  /** copia os orçamentos vigentes do mês anterior como orçamentos específicos deste mês */
+  copyBudgetsFrom(fromKey: string, toKey: string): number {
+    const src = this.budgetsFor(fromKey);
+    const existing = new Set(this.budgets().filter((b) => b.month === toKey).map((b) => b.categoryId));
+    const copies = src.filter((b) => !existing.has(b.categoryId)).map((b) => ({ ...b, id: uid('b'), month: toKey, recurring: false }));
+    if (copies.length) this.patch((d) => ({ ...d, budgets: [...d.budgets, ...copies] }));
+    return copies.length;
   }
 
   goalSaved(g: Goal): number {
@@ -319,7 +387,7 @@ export class StoreService {
   }
 
   saveBudget(b: Omit<Budget, 'id'> & { id?: string }): Budget {
-    const existing = b.id ? this.budget(b.id) : this.budgets().find((x) => x.categoryId === b.categoryId);
+    const existing = b.id ? this.budget(b.id) : this.budgets().find((x) => x.categoryId === b.categoryId && x.month === b.month);
     const budget: Budget = { ...b, limit: round2(b.limit), id: existing?.id ?? uid('b') };
     this.patch((d) => ({
       ...d,

@@ -1,5 +1,5 @@
 import { ApplicationConfig, LOCALE_ID, inject, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
-import { PreloadAllModules, RouteReuseStrategy, provideRouter, withPreloading } from '@angular/router';
+import { PreloadAllModules, RouteReuseStrategy, provideRouter, withComponentInputBinding, withPreloading } from '@angular/router';
 import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular/standalone';
 import { registerLocaleData } from '@angular/common';
 import localePt from '@angular/common/locales/pt';
@@ -18,10 +18,11 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'pt-BR' },
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideIonicAngular({ mode: 'ios', backButtonText: 'Voltar', swipeBackEnabled: true }),
-    provideRouter(routes, withPreloading(PreloadAllModules)),
-    provideAppInitializer(async () => {
-      await inject(StoreService).load();
+    provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
+    provideAppInitializer(() => {
+      const store = inject(StoreService);
       inject(ThemeService);
+      return store.load();
     }),
   ],
 };

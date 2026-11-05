@@ -70,7 +70,7 @@ const ACCOUNT_FOR: Record<string, string> = {
 
 /** totais e quantidades do mês corrente (Figma · Categorias / Dashboard) */
 const CURRENT_MONTH: Record<string, { total: number; count: number }> = {
-  c_moradia: { total: 2150, count: 2 },
+  c_moradia: { total: 2150, count: 3 },
   c_alimentacao: { total: 612.4, count: 23 },
   c_transporte: { total: 452.8, count: 14 },
   c_saude: { total: 410, count: 3 },
@@ -169,14 +169,22 @@ export function buildSeed(now = new Date()): AppData {
     ['c_assinaturas', 'Netflix', 39.9, 2, 7, 0],
     ['c_compras', 'Amazon — Fone de ouvido', 329, 4, 21, 10, { cardId: 'k_platinum' }],
     ['c_lazer', 'Cinema Kinoplex', 59, 4, 20, 0],
-    ['c_moradia', 'Aluguel', 1850, 25, 9, 0],
+    ['c_moradia', 'Aluguel', 1663.58, 25, 9, 0],
+    ['c_moradia', 'Conta de luz', 186.42, 2, 10, 0, { paid: false }],
     ['c_moradia', 'Condomínio', 300, 25, 9, 5],
     ['c_educacao', 'Curso de inglês', 397, 20, 10, 0],
     ['c_educacao', 'Alura', 150, 20, 10, 5],
+    // contas a vencer (pendentes)
+    ['c_assinaturas', 'Internet Fibra', 119.9, -2, 10, 0, { paid: false }],
   ];
   const usedTotals: Record<string, { total: number; count: number }> = {};
   named.forEach(([cat, desc, amount, ago, h, m, extra]) => {
     const isFixed = ago >= 20;
+    if (ago < 0) {
+      mk({ type: 'expense', description: desc, amount, categoryId: cat, accountId: 'a_itau', date: at(now, -ago, h, m), ...(extra ?? {}) });
+      usedTotals[cat] = { total: round2((usedTotals[cat]?.total ?? 0) + amount), count: (usedTotals[cat]?.count ?? 0) + 1 };
+      return;
+    }
     const date = isFixed ? dayInMonth(curKey, 1, h, m) : at(now, -ago, h, m);
     mk({ type: 'expense', description: desc, amount, categoryId: cat, accountId: ACCOUNT_FOR[cat], date, ...(extra ?? {}) });
     usedTotals[cat] = usedTotals[cat] ?? { total: 0, count: 0 };
@@ -202,9 +210,6 @@ export function buildSeed(now = new Date()): AppData {
     });
   });
 
-  // Contas a vencer (pendentes)
-  mk({ type: 'expense', description: 'Conta de luz', amount: 186.42, categoryId: 'c_moradia', accountId: 'a_itau', date: at(now, -2, 10, 0), paid: false });
-  mk({ type: 'expense', description: 'Internet Fibra', amount: 119.9, categoryId: 'c_assinaturas', accountId: 'a_itau', date: at(now, 2, 10, 0), paid: false });
 
   // Fatura do cartão: despesas no cartão dos últimos meses já pagas
   tx.filter((t) => t.categoryId === 'c_compras' && !t.cardId && t.date < dayInMonth(curKey, 1)).forEach((t, i) => {
@@ -219,14 +224,12 @@ export function buildSeed(now = new Date()): AppData {
     a.initialBalance = round2(TARGET_BALANCES[a.id] - net);
   });
 
+  const bm = addMonths(curKey, -5);
   const budgets: Budget[] = [
-    { id: 'b_moradia', categoryId: 'c_moradia', limit: 2300, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-    { id: 'b_alimentacao', categoryId: 'c_alimentacao', limit: 900, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-    { id: 'b_transporte', categoryId: 'c_transporte', limit: 500, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-    { id: 'b_compras', categoryId: 'c_compras', limit: 1200, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-    { id: 'b_assinaturas', categoryId: 'c_assinaturas', limit: 250, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-    { id: 'b_saude', categoryId: 'c_saude', limit: 600, alertAt: 80, recurring: true, month: addMonths(curKey, -5) },
-  ];
+    ['c_transporte', 400], ['c_lazer', 300], ['c_assinaturas', 250], ['c_compras', 2000],
+    ['c_alimentacao', 800], ['c_educacao', 800], ['c_saude', 700],
+  ].map(([categoryId, limit]) => ({ id: `b_${String(categoryId).slice(2)}`, categoryId: String(categoryId), limit: Number(limit), alertAt: 80, recurring: true, month: bm }));
+
 
   const contrib = (amounts: number[], startOffset: number) =>
     amounts.map((amount, i) => ({

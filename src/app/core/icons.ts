@@ -15,7 +15,7 @@ import {
   walletOutline, warning, warningOutline, shirtOutline, fitnessOutline, cafeOutline, busOutline, wifiOutline,
   flashOutline, waterOutline, musicalNotesOutline, bookOutline, constructOutline, globeOutline, keyOutline,
   ribbonOutline, rocketOutline, starOutline, trophyOutline, umbrellaOutline, diamondOutline, closeCircle,
-  checkmarkDoneOutline, analyticsOutline, peopleOutline, chatbubbleEllipsesOutline, starHalfOutline, shareOutline,
+  checkmarkDoneOutline, analyticsOutline, peopleOutline, chatbubbleEllipsesOutline, starHalfOutline, shareOutline, settingsOutline, pencilOutline, contrastOutline, phonePortrait, documentOutline, closeCircleOutline, arrowUpOutline, arrowDownOutline,
 } from 'ionicons/icons';
 
 export function registerIcons(): void {
@@ -35,7 +35,7 @@ export function registerIcons(): void {
     walletOutline, warning, warningOutline, shirtOutline, fitnessOutline, cafeOutline, busOutline, wifiOutline,
     flashOutline, waterOutline, musicalNotesOutline, bookOutline, constructOutline, globeOutline, keyOutline,
     ribbonOutline, rocketOutline, starOutline, trophyOutline, umbrellaOutline, diamondOutline, closeCircle,
-    checkmarkDoneOutline, analyticsOutline, peopleOutline, chatbubbleEllipsesOutline, starHalfOutline, shareOutline,
+    checkmarkDoneOutline, analyticsOutline, peopleOutline, chatbubbleEllipsesOutline, starHalfOutline, shareOutline, settingsOutline, pencilOutline, contrastOutline, phonePortrait, documentOutline, closeCircleOutline, arrowUpOutline, arrowDownOutline,
   });
 }
 

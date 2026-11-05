@@ -36,7 +36,7 @@ export interface TxFormResult {
 })
 export class TransactionFormModal implements OnInit {
   private readonly store = inject(StoreService);
-  private readonly modal = inject(ModalController);
+  private readonly modalCtrl = inject(ModalController);
   private readonly ui = inject(UiService);
 
   // componentProps
@@ -114,7 +114,7 @@ export class TransactionFormModal implements OnInit {
 
   async pickCategory(): Promise<void> {
     const cats = this.store.categoriesOf(this.type());
-    const id = await openPicker(this.modal, {
+    const id = await openPicker(this.modalCtrl, {
       title: 'Categoria',
       selected: this.categoryId(),
       searchable: cats.length > 8,
@@ -122,7 +122,7 @@ export class TransactionFormModal implements OnInit {
       options: cats.map((c) => ({ id: c.id, label: c.name, icon: c.icon, color: c.color, group: c.custom ? 'Personalizadas' : 'Padrão' })),
     });
     if (id === '__create__') {
-      const m = await this.modal.create({ component: CategoryFormModal, componentProps: { presetType: this.type() }, cssClass: 'mf-card-modal' });
+      const m = await this.modalCtrl.create({ component: CategoryFormModal, componentProps: { presetType: this.type() }, cssClass: 'mf-card-modal' });
       await m.present();
       const { data } = await m.onWillDismiss<string>();
       if (data) this.categoryId.set(data);
@@ -134,7 +134,7 @@ export class TransactionFormModal implements OnInit {
     if (this.type() === 'expense') {
       opts.push(...this.store.cards().map((c) => ({ id: `card:${c.id}`, label: c.name, icon: 'card-outline', color: 'outros' as const, group: 'Cartões de crédito' })));
     }
-    const id = await openPicker(this.modal, {
+    const id = await openPicker(this.modalCtrl, {
       title: this.type() === 'expense' ? 'Pagar com' : 'Receber em',
       selected: this.cardId() ? `card:${this.cardId()}` : this.accountId(),
       options: opts,
@@ -157,7 +157,7 @@ export class TransactionFormModal implements OnInit {
   }
 
   cancel(): void {
-    void this.modal.dismiss(null, 'cancel');
+    void this.modalCtrl.dismiss(null, 'cancel');
   }
 
   save(): void {
@@ -186,7 +186,7 @@ export class TransactionFormModal implements OnInit {
       tx = this.store.addTransaction(payload);
     }
     this.ui.notify('success');
-    void this.modal.dismiss({ tx, mode: this.txId ? 'edit' : 'create' } satisfies TxFormResult, 'save');
+    void this.modalCtrl.dismiss({ tx, mode: this.txId ? 'edit' : 'create' } satisfies TxFormResult, 'save');
   }
 }
 

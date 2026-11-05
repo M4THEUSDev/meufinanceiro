@@ -36,7 +36,10 @@
               "src/global.scss",
               "src/theme/variables.scss"
             ],
-            "outputPath": "www"
+            "outputPath": {
+              "base": "www",
+              "browser": ""
+            }
           },
           "configurations": {
             "production": {

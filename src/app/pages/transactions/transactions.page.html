@@ -1,0 +1,73 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Transações</ion-title>
+    <ion-buttons slot="end">
+      <button class="mf-reset mf-action" type="button" aria-label="Nova transação" (click)="add()"><ion-icon name="add"></ion-icon></button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border">
+    <ion-toolbar><ion-title size="large">Transações</ion-title></ion-toolbar>
+  </ion-header>
+
+  <div class="stack">
+    <div class="mf-section">
+      <ion-searchbar class="mf-search" mode="ios" placeholder="Buscar por descrição ou valor" [debounce]="150"
+        [value]="filters().search" (ionInput)="search($any($event).detail.value)"></ion-searchbar>
+      <div class="chips">
+        <button type="button" class="chip on" (click)="pickPeriod()">{{ periodLabel() }}<ion-icon name="chevron-down"></ion-icon></button>
+        <button type="button" class="chip" [class.on]="filters().categoryIds.length" (click)="pickCategory()">{{ categoryLabel() }}<ion-icon name="chevron-down"></ion-icon></button>
+        <button type="button" class="chip" [class.on]="filters().type !== 'all'" (click)="pickType()">{{ typeLabel() }}<ion-icon name="chevron-down"></ion-icon></button>
+        <button type="button" class="chip icon" [class.on]="extraActive()" aria-label="Mais filtros" (click)="openFilters()"><ion-icon name="options-outline"></ion-icon></button>
+      </div>
+    </div>
+
+    <div class="mf-section">
+      <div class="mf-card totals">
+        <div><span class="t-caption1 c-secondary">Receitas</span><span class="t-footnote-sb c-success">{{ totals().income | money: 'sign' }}</span></div>
+        <div><span class="t-caption1 c-secondary">Despesas</span><span class="t-footnote-sb c-danger">{{ -totals().expense | money: 'sign' }}</span></div>
+        <div><span class="t-caption1 c-secondary">Saldo</span><span class="t-footnote-sb">{{ totals().net | money }}</span></div>
+      </div>
+    </div>
+
+    @for (g of groups(); track g.key) {
+      <div class="mf-section day">
+        <div class="day-head t-footnote">
+          <span class="t-footnote-sb c-secondary">{{ g.label }}</span>
+          <span class="c-tertiary">{{ g.net | money: 'sign' }}</span>
+        </div>
+        <div class="mf-card list">
+          @for (t of g.items; track t.id) {
+            <ion-item-sliding #sliding>
+              <mf-transaction-item [tx]="t" metaMode="account" (click)="open(t)"></mf-transaction-item>
+              <ion-item-options side="end">
+                <ion-item-option class="opt-edit" (click)="edit(t, sliding)"><ion-icon slot="top" name="create-outline"></ion-icon>Editar</ion-item-option>
+                <ion-item-option class="opt-del" color="danger" (click)="remove(t, sliding)"><ion-icon slot="top" name="trash-outline"></ion-icon>Excluir</ion-item-option>
+              </ion-item-options>
+            </ion-item-sliding>
+          }
+        </div>
+      </div>
+    } @empty {
+      <div class="mf-section">
+        <div class="mf-card mf-empty">
+          <ion-icon name="file-tray-outline"></ion-icon>
+          @if (hasFilters()) {
+            <p class="t-headline">Nenhuma transação encontrada</p>
+            <p class="t-footnote">Tente ajustar a busca ou os filtros.</p>
+            <ion-button fill="clear" class="mf-small" (click)="clearFilters()">Limpar filtros</ion-button>
+          } @else {
+            <p class="t-headline">Nenhuma transação neste mês</p>
+            <p class="t-footnote">Toque no + para registrar uma receita ou despesa.</p>
+          }
+        </div>
+      </div>
+    }
+
+    @if (groups().length) {
+      <p class="hint t-caption1 c-tertiary">Deslize um item para a esquerda para Editar ou Excluir</p>
+    }
+  </div>
+</ion-content>

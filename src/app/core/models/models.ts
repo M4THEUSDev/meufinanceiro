@@ -14,7 +14,7 @@ export interface Category {
   archived?: boolean;
 }
 
-export type AccountKind = 'corrente' | 'digital' | 'poupanca' | 'dinheiro' | 'investimento';
+export type AccountKind = 'corrente' | 'digital' | 'poupanca' | 'investimento' | 'carteira' | 'dinheiro';
 
 export interface Account {
   id: string;
@@ -53,7 +53,7 @@ export interface Budget {
   id: string;
   categoryId: string;
   limit: number;
-  /** alerta ao atingir (%) */
+  /** alerta ao atingir (%) — 0 desativa */
   alertAt: number;
   /** repete todos os meses */
   recurring: boolean;
@@ -128,7 +128,11 @@ export interface AppData {
 }
 
 export interface TxFilters {
-  period: 'month' | 'last30' | 'last90' | 'year' | 'all';
+  /** month = mês em `month`; last3 = 3 meses até hoje; year = ano corrente; custom = intervalo from/to */
+  period: 'month' | 'last3' | 'year' | 'custom' | 'all';
+  month: string;
+  from?: string;
+  to?: string;
   type: 'all' | TxType;
   categoryIds: string[];
   accountId: string | null;

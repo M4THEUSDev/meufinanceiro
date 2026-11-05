@@ -62,7 +62,7 @@ export interface PickerOption {
   `,
 })
 export class PickerModal {
-  private readonly modal = inject(ModalController);
+  private readonly modalCtrl = inject(ModalController);
   // componentProps (atribuídos pelo ModalController)
   title = 'Selecionar';
   options: PickerOption[] = [];
@@ -83,10 +83,10 @@ export class PickerModal {
   });
 
   pick(id: string): void {
-    void this.modal.dismiss(id, 'select');
+    void this.modalCtrl.dismiss(id, 'select');
   }
   close(): void {
-    void this.modal.dismiss(null, 'cancel');
+    void this.modalCtrl.dismiss(null, 'cancel');
   }
 }
 

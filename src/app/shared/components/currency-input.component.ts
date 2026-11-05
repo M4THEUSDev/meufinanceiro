@@ -17,7 +17,7 @@ const fmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFr
     <div class="amount">
       <span class="t-amount-medium cur">R$</span>
       <input [id]="id" class="t-amount-display" type="text" inputmode="decimal" autocomplete="off"
-        [value]="display()" [style.width.ch]="width()" (input)="onInput($event)" (focus)="select($event)" [attr.aria-label]="label()" />
+        [value]="display()" [style.width.ch]="width()" (beforeinput)="onBeforeInput($event)" (input)="onInput($event)" (focus)="select($event)" (click)="select($event)" [attr.aria-label]="label()" />
     </div>
     <div class="hint"><ion-icon name="cash-outline"></ion-icon><span class="t-caption1 c-tertiary">{{ hint() }}</span></div>
   `,
@@ -44,6 +44,28 @@ export class CurrencyInputComponent {
   readonly tone = input<'expense' | 'income' | 'neutral'>('neutral');
   readonly display = computed(() => fmt.format(this.value() || 0));
   readonly width = computed(() => Math.max(4, this.display().length + 0.5));
+
+  /** digitação estilo "caixa eletrônico": cada dígito entra pela direita; backspace remove o último */
+  onBeforeInput(ev: Event): void {
+    const e = ev as InputEvent;
+    const el = e.target as HTMLInputElement;
+    let cents = Math.round((this.value() || 0) * 100);
+    if (e.inputType === 'insertText' || e.inputType === 'insertReplacementText') {
+      e.preventDefault();
+      for (const ch of (e.data ?? '').replace(/\D/g, '')) {
+        if (String(cents).length >= 13) break;
+        cents = cents * 10 + Number(ch);
+      }
+    } else if (e.inputType.startsWith('delete')) {
+      e.preventDefault();
+      cents = e.inputType === 'deleteContentBackward' ? Math.floor(cents / 10) : 0;
+    } else {
+      return; // colar etc. → tratado em onInput
+    }
+    this.value.set(cents / 100);
+    el.value = fmt.format(cents / 100);
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
 
   onInput(ev: Event): void {
     const el = ev.target as HTMLInputElement;
