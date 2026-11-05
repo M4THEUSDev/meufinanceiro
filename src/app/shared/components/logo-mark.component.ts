@@ -1,0 +1,21 @@
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+
+/** Logo/Mark — barras ascendentes + seta de crescimento (exportado do Figma, node 10:185) */
+@Component({
+  selector: 'mf-logo-mark',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[style.width.px]': 'size()', '[style.height.px]': 'size()' },
+  template: `
+    <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="MeuFinanceiro" role="img">
+      <path d="M38 72C38 66.4772 33.5228 62 28 62C22.4772 62 18 66.4772 18 72V92C18 97.5228 22.4772 102 28 102C33.5228 102 38 97.5228 38 92V72Z" fill="currentColor" fill-opacity="0.55"/>
+      <path d="M70 56C70 50.4772 65.5228 46 60 46C54.4772 46 50 50.4772 50 56V92C50 97.5228 54.4772 102 60 102C65.5228 102 70 97.5228 70 92V56Z" fill="currentColor" fill-opacity="0.78"/>
+      <path d="M102 40C102 34.4772 97.5228 30 92 30C86.4772 30 82 34.4772 82 40V92C82 97.5229 86.4772 102 92 102C97.5228 102 102 97.5229 102 92V40Z" fill="currentColor"/>
+      <path d="M14 50L44 30L64 40L100 14" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M84 13H101V30" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `,
+  styles: `:host { display: inline-block; color: #fff; } svg { width: 100%; height: 100%; display: block; }`,
+})
+export class LogoMarkComponent {
+  readonly size = input(72);
+}

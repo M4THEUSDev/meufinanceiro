@@ -1,0 +1,136 @@
+export type TxType = 'expense' | 'income';
+
+export type CategoryColor =
+  | 'moradia' | 'alimentacao' | 'transporte' | 'saude' | 'educacao' | 'assinaturas'
+  | 'lazer' | 'compras' | 'salario' | 'extra' | 'reembolso' | 'rendimentos' | 'outros';
+
+export interface Category {
+  id: string;
+  name: string;
+  type: TxType;
+  icon: string;
+  color: CategoryColor;
+  custom?: boolean;
+  archived?: boolean;
+}
+
+export type AccountKind = 'corrente' | 'digital' | 'poupanca' | 'dinheiro' | 'investimento';
+
+export interface Account {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  /** ex.: "ag. 0001" */
+  detail?: string;
+  icon: string;
+  color: CategoryColor;
+  initialBalance: number;
+  active: boolean;
+  includeInTotal: boolean;
+  createdAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: TxType;
+  description: string;
+  /** valor sempre positivo; o sinal vem de `type` */
+  amount: number;
+  categoryId: string;
+  accountId: string;
+  /** cartão de crédito (opcional) — despesas no cartão entram na fatura */
+  cardId?: string;
+  /** compra no cartão já quitada via pagamento de fatura */
+  invoicePaid?: boolean;
+  /** ISO date-time */
+  date: string;
+  paid: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Budget {
+  id: string;
+  categoryId: string;
+  limit: number;
+  /** alerta ao atingir (%) */
+  alertAt: number;
+  /** repete todos os meses */
+  recurring: boolean;
+  /** YYYY-MM do mês de início */
+  month: string;
+}
+
+export interface GoalContribution {
+  id: string;
+  amount: number;
+  date: string;
+  accountId?: string;
+  note?: string;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  icon: string;
+  color: CategoryColor;
+  target: number;
+  /** YYYY-MM */
+  deadline: string;
+  contributions: GoalContribution[];
+  createdAt: string;
+}
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  brand: 'Visa' | 'Mastercard' | 'Elo' | 'Amex';
+  last4: string;
+  limit: number;
+  closingDay: number;
+  dueDay: number;
+  /** gradiente do cartão */
+  theme: 'platinum' | 'roxo' | 'grafite' | 'verde';
+  accountId: string;
+}
+
+export type ThemePref = 'system' | 'light' | 'dark';
+
+export interface Settings {
+  userName: string;
+  email: string;
+  hideValues: boolean;
+  theme: ThemePref;
+  onboarded: boolean;
+  loggedIn: boolean;
+  faceId: boolean;
+  notifications: boolean;
+  billReminders: boolean;
+  budgetAlerts: boolean;
+  savingsGoalPct: number;
+  currency: 'BRL';
+  startOfMonthDay: number;
+  /** SHA-256 da senha local (definida no primeiro login) */
+  passwordHash?: string;
+  /** já fez login neste dispositivo (habilita Face ID) */
+  hasLoggedBefore?: boolean;
+}
+
+export interface AppData {
+  version: number;
+  settings: Settings;
+  accounts: Account[];
+  categories: Category[];
+  transactions: Transaction[];
+  budgets: Budget[];
+  goals: Goal[];
+  cards: CreditCard[];
+}
+
+export interface TxFilters {
+  period: 'month' | 'last30' | 'last90' | 'year' | 'all';
+  type: 'all' | TxType;
+  categoryIds: string[];
+  accountId: string | null;
+  search: string;
+}
