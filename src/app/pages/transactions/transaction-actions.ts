@@ -14,6 +14,19 @@ export async function confirmDeleteTransaction(store: StoreService, ui: UiServic
     destructive: true,
   });
   if (!ok) return false;
+  if (t.installment) {
+    const all = await ui.confirm({
+      header: 'Compra parcelada',
+      message: `Excluir também as demais parcelas de “${t.description}”?`,
+      confirmText: 'Todas as parcelas',
+      cancelText: 'Só esta',
+    });
+    if (all) {
+      store.deleteInstallmentGroup(t.installment.group);
+      await ui.toast({ title: 'Compra parcelada excluída', message: t.description, tone: 'danger' });
+      return true;
+    }
+  }
   const removed = store.deleteTransaction(t.id);
   await ui.toast({
     title: 'Transação excluída',

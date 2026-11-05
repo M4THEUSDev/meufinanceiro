@@ -75,7 +75,7 @@ export class TabsPage {
   readonly hideBar = signal(false);
 
   constructor() {
-    const check = (url: string) => this.hideBar.set(/^\/tabs\/(transacoes|planejamento)\/[^/?#]+/.test(url));
+    const check = (url: string) => this.hideBar.set(/^\/tabs\/((transacoes|planejamento)\/[^/?#]+|mais\/configuracoes)/.test(url));
     check(this.router.url);
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => check(e.urlAfterRedirects));
   }

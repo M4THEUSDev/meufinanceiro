@@ -63,8 +63,17 @@ export class StoreService {
     const map = new Map<string, number>();
     this.accounts().forEach((a) => map.set(a.id, a.initialBalance));
     for (const t of this._data().transactions) {
-      if (!t.paid || (t.cardId && !t.invoicePaid) || !map.has(t.accountId)) continue;
-      map.set(t.accountId, round2(map.get(t.accountId)! + (t.type === 'income' ? t.amount : -t.amount)));
+      const acc = this.effectiveAccount(t);
+      if (!t.paid || (t.cardId && !t.invoicePaid) || !map.has(acc)) continue;
+      map.set(acc, round2(map.get(acc)! + (t.type === 'income' ? t.amount : -t.amount)));
+    }
+    // contribuições para metas: transferência da conta de origem para a conta onde a meta é guardada
+    for (const g of this._data().goals) {
+      for (const c of g.contributions) {
+        if (!c.accountId || c.accountId === g.accountId) continue;
+        if (map.has(c.accountId)) map.set(c.accountId, round2(map.get(c.accountId)! - c.amount));
+        if (g.accountId && map.has(g.accountId)) map.set(g.accountId, round2(map.get(g.accountId)! + c.amount));
+      }
     }
     return map;
   });
@@ -111,6 +120,12 @@ export class StoreService {
       /* dados corrompidos: mantém o seed */
     }
     this.ready.set(true);
+  }
+
+  /** compras no cartão saem da conta que paga a fatura */
+  private effectiveAccount(t: Transaction): string {
+    if (!t.cardId) return t.accountId;
+    return this._data().cards.find((c) => c.id === t.cardId)?.accountId ?? t.accountId;
   }
 
   // ---------------- Lookups ----------------
@@ -228,8 +243,15 @@ export class StoreService {
     let total = this.accounts().filter((a) => a.active && a.includeInTotal).reduce((s, a) => s + a.initialBalance, 0);
     const ids = new Set(this.accounts().filter((a) => a.active && a.includeInTotal).map((a) => a.id));
     for (const t of this._data().transactions) {
-      if (!t.paid || (t.cardId && !t.invoicePaid) || !ids.has(t.accountId) || new Date(t.date).getTime() > limit) continue;
+      if (!t.paid || (t.cardId && !t.invoicePaid) || !ids.has(this.effectiveAccount(t)) || new Date(t.date).getTime() > limit) continue;
       total += t.type === 'income' ? t.amount : -t.amount;
+    }
+    for (const g of this._data().goals) {
+      for (const c of g.contributions) {
+        if (!c.accountId || c.accountId === g.accountId || new Date(c.date).getTime() > limit) continue;
+        if (ids.has(c.accountId)) total -= c.amount;
+        if (g.accountId && ids.has(g.accountId)) total += c.amount;
+      }
     }
     return round2(total);
   }
@@ -281,12 +303,43 @@ export class StoreService {
     return round2(g.contributions.reduce((s, c) => s + c.amount, 0));
   }
 
+  /** fatura atual: compras no cartão ainda não quitadas, até hoje */
   cardOpenAmount(cardId: string): number {
-    return round2(this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid).reduce((s, t) => s + t.amount, 0));
+    const now = Date.now();
+    return round2(
+      this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() <= now).reduce((s, t) => s + t.amount, 0),
+    );
   }
 
+  /** parcelas futuras (ainda não faturadas) */
+  cardFutureAmount(cardId: string): number {
+    const now = Date.now();
+    return round2(
+      this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() > now).reduce((s, t) => s + t.amount, 0),
+    );
+  }
+
+  /** limite comprometido = fatura atual + parcelas futuras */
   cardUsed(cardId: string): number {
-    return this.cardOpenAmount(cardId);
+    return round2(this.cardOpenAmount(cardId) + this.cardFutureAmount(cardId));
+  }
+
+  /** compras parceladas com parcelas ainda por vir */
+  installmentPlans(cardId?: string): { group: string; description: string; amount: number; current: number; total: number; categoryId: string; cardId: string }[] {
+    const now = Date.now();
+    const groups = new Map<string, Transaction[]>();
+    for (const t of this._data().transactions) {
+      if (!t.installment || (cardId && t.cardId !== cardId)) continue;
+      groups.set(t.installment.group, [...(groups.get(t.installment.group) ?? []), t]);
+    }
+    return [...groups.values()]
+      .map((list) => {
+        const sorted = list.sort((a, b) => a.date.localeCompare(b.date));
+        const past = sorted.filter((t) => new Date(t.date).getTime() <= now);
+        const f = sorted[0];
+        return { group: f.installment!.group, description: f.description, amount: f.amount, current: past.length, total: f.installment!.total, categoryId: f.categoryId, cardId: f.cardId! };
+      })
+      .filter((p) => p.current < p.total);
   }
 
   nextDueDate(c: CreditCard, from = new Date()): Date {
@@ -328,6 +381,24 @@ export class StoreService {
     return tx;
   }
 
+  /** cria uma compra parcelada no cartão: uma transação por mês */
+  addInstallments(t: Omit<Transaction, 'id' | 'createdAt' | 'installment'>, parts: number): Transaction[] {
+    const group = uid('ig');
+    const each = Math.floor((t.amount / parts) * 100) / 100;
+    const first = round2(t.amount - each * (parts - 1));
+    const base = new Date(t.date);
+    const list: Transaction[] = Array.from({ length: parts }, (_, i) => {
+      const d = new Date(base.getFullYear(), base.getMonth() + i, base.getDate(), base.getHours(), base.getMinutes());
+      return { ...t, id: uid('t'), amount: i === 0 ? first : each, date: d.toISOString(), createdAt: new Date().toISOString(), installment: { group, index: i + 1, total: parts } };
+    });
+    this.patch((d) => ({ ...d, transactions: [...list, ...d.transactions] }));
+    return list;
+  }
+
+  deleteInstallmentGroup(group: string): void {
+    this.patch((d) => ({ ...d, transactions: d.transactions.filter((t) => t.installment?.group !== group) }));
+  }
+
   updateTransaction(id: string, p: Partial<Transaction>): void {
     this.patch((d) => ({ ...d, transactions: d.transactions.map((t) => (t.id === id ? { ...t, ...p, id } : t)) }));
   }
@@ -348,7 +419,11 @@ export class StoreService {
 
   payCardInvoice(cardId: string): number {
     const amount = this.cardOpenAmount(cardId);
-    this.patch((d) => ({ ...d, transactions: d.transactions.map((t) => (t.cardId === cardId && !t.invoicePaid ? { ...t, paid: true, invoicePaid: true } : t)) }));
+    const now = Date.now();
+    this.patch((d) => ({
+      ...d,
+      transactions: d.transactions.map((t) => (t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() <= now ? { ...t, paid: true, invoicePaid: true } : t)),
+    }));
     return amount;
   }
 
@@ -406,7 +481,7 @@ export class StoreService {
       ...rest,
       id: uid('g'),
       createdAt: new Date().toISOString(),
-      contributions: initial ? [{ id: uid('gc'), amount: round2(initial), date: new Date().toISOString() }] : [],
+      contributions: initial ? [{ id: uid('gc'), amount: round2(initial), date: new Date().toISOString(), note: 'Valor inicial' }] : [],
     };
     this.patch((d) => ({ ...d, goals: [...d.goals, goal] }));
     return goal;
@@ -424,7 +499,24 @@ export class StoreService {
     const contribution: GoalContribution = { ...c, amount: round2(c.amount), id: uid('gc') };
     this.patch((d) => ({
       ...d,
-      goals: d.goals.map((g) => (g.id === goalId ? { ...g, contributions: [...g.contributions, contribution] } : g)),
+      goals: d.goals.map((g) => {
+        if (g.id !== goalId) return g;
+        const contributions = [...g.contributions, contribution];
+        const saved = contributions.reduce((s, x) => s + x.amount, 0);
+        return { ...g, contributions, completedAt: saved >= g.target ? (g.completedAt ?? new Date().toISOString()) : undefined };
+      }),
+    }));
+  }
+
+  removeContribution(goalId: string, contributionId: string): void {
+    this.patch((d) => ({
+      ...d,
+      goals: d.goals.map((g) => {
+        if (g.id !== goalId) return g;
+        const contributions = g.contributions.filter((c) => c.id !== contributionId);
+        const saved = contributions.reduce((s, x) => s + x.amount, 0);
+        return { ...g, contributions, completedAt: saved >= g.target ? g.completedAt : undefined };
+      }),
     }));
   }
 

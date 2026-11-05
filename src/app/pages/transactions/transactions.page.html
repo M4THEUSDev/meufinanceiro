@@ -8,6 +8,7 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="mf-page">
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content refreshingText="Atualizando…" pullingText="Puxe para atualizar"></ion-refresher-content></ion-refresher>
   <ion-header collapse="condense" class="ion-no-border">
     <ion-toolbar><ion-title size="large">Transações</ion-title></ion-toolbar>
   </ion-header>
@@ -59,8 +60,9 @@
             <p class="t-footnote">Tente ajustar a busca ou os filtros.</p>
             <ion-button fill="clear" class="mf-small" (click)="clearFilters()">Limpar filtros</ion-button>
           } @else {
-            <p class="t-headline">Nenhuma transação neste mês</p>
-            <p class="t-footnote">Toque no + para registrar uma receita ou despesa.</p>
+            <p class="t-headline">Nenhuma transação em {{ emptyMonth() }}</p>
+            <p class="t-footnote">Quando você registrar receitas ou despesas deste mês, elas aparecem aqui agrupadas por data.</p>
+            <ion-button class="mf-small" (click)="add()"><ion-icon slot="start" name="add"></ion-icon>Adicionar transação</ion-button>
           }
         </div>
       </div>

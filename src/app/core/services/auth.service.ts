@@ -43,6 +43,29 @@ export class AuthService {
     return true;
   }
 
+  async verifyPassword(password: string): Promise<boolean> {
+    const s = this.store.settings();
+    if (!s.passwordHash) return true;
+    return (await sha256(`${s.email.toLowerCase()}:${password}`)) === s.passwordHash;
+  }
+
+  async changePassword(current: string, next: string): Promise<{ ok: boolean; message?: string }> {
+    if (!(await this.verifyPassword(current))) return { ok: false, message: 'A senha atual está incorreta.' };
+    if (next.length < 6) return { ok: false, message: 'A nova senha deve ter pelo menos 6 caracteres.' };
+    const s = this.store.settings();
+    this.store.updateSettings({ passwordHash: await sha256(`${s.email.toLowerCase()}:${next}`) });
+    return { ok: true };
+  }
+
+  /** troca de e-mail mantém a senha (re-hash com o novo e-mail) */
+  async changeEmail(email: string, password: string): Promise<{ ok: boolean; message?: string }> {
+    const e = email.trim().toLowerCase();
+    if (!EMAIL_RE.test(e)) return { ok: false, message: 'Informe um e-mail válido.' };
+    if (!(await this.verifyPassword(password))) return { ok: false, message: 'Senha incorreta.' };
+    this.store.updateSettings({ email: e, passwordHash: await sha256(`${e}:${password}`) });
+    return { ok: true };
+  }
+
   resetPassword(): void {
     this.store.updateSettings({ passwordHash: undefined, hasLoggedBefore: false, faceId: false });
   }

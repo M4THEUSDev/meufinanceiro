@@ -30,6 +30,8 @@ export interface TxFormResult {
     .lead-date { --lead: var(--mf-category-transporte); }
     .lead-paid { --lead: var(--ion-color-success); }
     .err { color: var(--ion-color-danger); font-size: 13px; padding: 0 4px; margin: 0; }
+    .mf-row.invalid .label { color: var(--ion-color-danger); }
+    .mf-row.invalid input::placeholder, .mf-row.invalid .value { color: var(--ion-color-danger); }
     ion-datetime { --background: var(--ion-card-background); margin: 0 auto; }
     .dt-wrap { padding: 8px 16px 24px; display: flex; flex-direction: column; gap: 12px; background: var(--ion-background-color); }
   `,
@@ -54,6 +56,7 @@ export class TransactionFormModal implements OnInit {
   readonly date = signal(new Date().toISOString());
   readonly paid = signal(true);
   readonly notes = signal('');
+  readonly parts = signal(1);
   readonly submitted = signal(false);
   readonly dateOpen = signal(false);
   readonly maxDate = toDateInput(new Date(new Date().getFullYear() + 2, 11, 31).toISOString());
@@ -76,6 +79,11 @@ export class TransactionFormModal implements OnInit {
     category: !this.categoryId() ? 'Selecione uma categoria.' : '',
     account: !this.accountId() ? 'Selecione uma conta.' : '',
   }));
+  readonly missing = computed(() => {
+    const e = this.errors();
+    const list = [e.description && 'descrição', e.category && 'categoria', e.account && 'conta'].filter(Boolean) as string[];
+    return list.length > 1 ? `${list.slice(0, -1).join(', ')} e ${list.at(-1)}` : list[0] ?? '';
+  });
   readonly valid = computed(() => Object.values(this.errors()).every((e) => !e));
 
   ngOnInit(): void {
@@ -150,6 +158,16 @@ export class TransactionFormModal implements OnInit {
     }
   }
 
+  async pickParts(): Promise<void> {
+    const opts = Array.from({ length: 12 }, (_, i) => {
+      const n = i + 1;
+      const each = this.amount() / n;
+      return { id: String(n), label: n === 1 ? 'À vista' : `${n}x`, subtitle: this.store.hidden() || !this.amount() ? undefined : `${n}x de R$ ${each.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` };
+    });
+    const id = await openPicker(this.modalCtrl, { title: 'Parcelas', selected: String(this.parts()), options: opts });
+    if (id) this.parts.set(Number(id));
+  }
+
   onDate(value: string | string[] | null | undefined): void {
     const v = Array.isArray(value) ? value[0] : value;
     if (!v) return;
@@ -163,7 +181,9 @@ export class TransactionFormModal implements OnInit {
   save(): void {
     this.submitted.set(true);
     if (!this.valid()) {
+      const n = Object.values(this.errors()).filter(Boolean).length;
       this.ui.notify('error');
+      void this.ui.toast({ title: 'Revise os campos destacados', message: `${n} ${n === 1 ? 'campo obrigatório não foi preenchido' : 'campos obrigatórios não foram preenchidos'}.`, tone: 'danger' });
       return;
     }
     const payload = {
@@ -182,6 +202,8 @@ export class TransactionFormModal implements OnInit {
       const prev = this.store.transaction(this.txId);
       this.store.updateTransaction(this.txId, { ...payload, invoicePaid: payload.cardId && payload.cardId === prev?.cardId ? prev?.invoicePaid : undefined });
       tx = this.store.transaction(this.txId)!;
+    } else if (payload.cardId && this.parts() > 1) {
+      tx = this.store.addInstallments(payload, this.parts())[0];
     } else {
       tx = this.store.addTransaction(payload);
     }
@@ -211,13 +233,15 @@ export async function openTransactionForm(
   const kind = t.type === 'income' ? 'Receita' : 'Despesa';
   const value = store.hidden() ? '' : ` · ${t.type === 'income' ? '+' : '−'} R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
   if (data.mode === 'create') {
+    const parts = t.installment ? ` · ${t.installment.total}x no cartão` : '';
     await ui.toast({
       title: `${kind} salva`,
-      message: `${t.description}${value} · ${store.account(t.accountId)?.name ?? ''}`,
+      message: `${t.description}${value}${parts || ' · Saldo atualizado'}`,
       action: {
         text: 'Desfazer',
         handler: () => {
-          store.deleteTransaction(t.id);
+          if (t.installment) store.deleteInstallmentGroup(t.installment.group);
+          else store.deleteTransaction(t.id);
         },
       },
     });

@@ -121,7 +121,7 @@ body {
 }
 .mf-empty ion-icon { font-size: 40px; color: var(--mf-text-tertiary); }
 
-button.mf-reset {
+:where(button.mf-reset) {
   appearance: none; border: 0; background: none; padding: 0; margin: 0;
   font: inherit; color: inherit; cursor: pointer; text-align: inherit;
 }
@@ -321,3 +321,20 @@ ion-header.mf-status { box-shadow: none; }
 ion-header[collapse='condense'] ion-toolbar { --background: var(--ion-background-color); }
 ion-header[collapse='condense'] ion-title[size='large'] { padding-bottom: 8px; font-weight: 700; }
 ion-toolbar ion-title { color: var(--ion-text-color); }
+
+/* Toast (Figma · Feedback & Estados) — card branco, ícone em círculo tingido */
+ion-toast.mf-toast {
+  --start: 16px; --end: 16px; --width: auto; --max-width: 480px;
+  --button-color: var(--ion-color-primary-shade);
+}
+ion-toast.mf-toast::part(container) { padding: 6px 4px; }
+ion-toast.mf-toast::part(icon) {
+  width: 36px; height: 36px; padding: 7px; border-radius: 999px; box-sizing: border-box;
+  color: var(--ion-color-success); background: color-mix(in srgb, var(--ion-color-success) 14%, transparent);
+}
+ion-toast.mf-toast-danger::part(icon) { color: var(--ion-color-danger); background: color-mix(in srgb, var(--ion-color-danger) 14%, transparent); }
+ion-toast.mf-toast-warning::part(icon) { color: var(--ion-color-warning); background: color-mix(in srgb, var(--ion-color-warning) 14%, transparent); }
+ion-toast.mf-toast-info::part(icon) { color: var(--ion-color-primary); background: color-mix(in srgb, var(--ion-color-primary) 14%, transparent); }
+ion-toast.mf-toast::part(header) { font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: -0.15px; color: var(--ion-text-color); }
+ion-toast.mf-toast::part(message) { font-size: 13px; line-height: 18px; letter-spacing: -0.13px; color: var(--mf-text-secondary); }
+ion-toast.mf-toast::part(button) { font-weight: 600; font-size: 15px; text-transform: none; }

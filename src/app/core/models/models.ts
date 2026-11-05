@@ -42,6 +42,8 @@ export interface Transaction {
   cardId?: string;
   /** compra no cartão já quitada via pagamento de fatura */
   invoicePaid?: boolean;
+  /** compra parcelada: id do grupo + parcela atual / total */
+  installment?: { group: string; index: number; total: number };
   /** ISO date-time */
   date: string;
   paid: boolean;
@@ -77,13 +79,21 @@ export interface Goal {
   target: number;
   /** YYYY-MM */
   deadline: string;
+  /** conta onde o dinheiro da meta fica guardado */
+  accountId?: string;
   contributions: GoalContribution[];
+  /** ISO — preenchido quando o objetivo é alcançado */
+  completedAt?: string;
   createdAt: string;
 }
 
 export interface CreditCard {
   id: string;
   name: string;
+  /** emissor exibido no cartão, ex.: "Banco Digital" */
+  bank: string;
+  /** categoria do cartão, ex.: "Platinum" */
+  tier: string;
   brand: 'Visa' | 'Mastercard' | 'Elo' | 'Amex';
   last4: string;
   limit: number;
@@ -112,6 +122,11 @@ export interface Settings {
   startOfMonthDay: number;
   /** SHA-256 da senha local (definida no primeiro login) */
   passwordHash?: string;
+  /** foto de perfil (data URL) */
+  photo?: string;
+  /** bloqueio do app ao voltar do segundo plano */
+  appLock: 'off' | 'immediately' | '1min' | '5min';
+  dateFormat: 'DD/MM/AAAA' | 'AAAA-MM-DD';
   /** já fez login neste dispositivo (habilita Face ID) */
   hasLoggedBefore?: boolean;
 }

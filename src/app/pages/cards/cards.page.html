@@ -1,0 +1,90 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais" text="Mais"></ion-back-button></ion-buttons>
+    <ion-title>Cartões de crédito</ion-title>
+    <ion-buttons slot="end"><button class="mf-reset mf-action" type="button" aria-label="Novo cartão" (click)="add()"><ion-icon name="add"></ion-icon></button></ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border"><ion-toolbar><ion-title size="large">Cartões de crédito</ion-title></ion-toolbar></ion-header>
+
+  @if (card(); as c) {
+    <div class="body">
+      <div class="carousel" #track (scroll)="onScroll()">
+        @for (k of cards(); track k.id) { <mf-card-visual [card]="k" (click)="edit()"></mf-card-visual> }
+      </div>
+      @if (cards().length > 1) {
+        <div class="pager">
+          @for (k of cards(); track k.id) { <button class="mf-reset dot" type="button" [class.on]="$index === index()" [attr.aria-label]="k.name" (click)="goTo($index)"></button> }
+        </div>
+      }
+
+      <div class="pad">
+        <div class="mf-card limit">
+          <div class="lrow">
+            <div><span class="t-footnote-sb c-secondary">Limite disponível</span><span class="t-amount-medium" [class.c-success]="available() >= 0" [class.c-danger]="available() < 0">{{ available() | money }}</span></div>
+            <div class="r"><span class="t-footnote c-tertiary">Limite total</span><span class="t-footnote-sb">{{ c.limit | money }}</span></div>
+          </div>
+          <div class="bar"><i class="open" [style.width.%]="openPct()"></i><i class="fut" [style.width.%]="futurePct()"></i></div>
+          <p class="t-caption1 c-secondary lg"><i class="d open"></i>Fatura atual {{ open() | money }}</p>
+          <p class="t-caption1 c-secondary lg"><i class="d fut"></i>Parcelas futuras {{ future() | money }}</p>
+        </div>
+      </div>
+
+      <div class="pad">
+        <div class="mf-card inv">
+          <div class="irow"><span class="t-headline">Fatura de {{ invoiceMonth() }}</span><span class="mf-pill st" [class]="'mf-pill st ' + status().cls">{{ status().label }}</span></div>
+          <span class="t-amount-large">{{ open() | money }}</span>
+          <div class="dates">
+            <div class="dt"><ion-icon name="lock-closed-outline"></ion-icon><div><span class="t-footnote c-secondary">Fechamento</span><span class="t-headline">{{ dm(closing()) }}</span></div></div>
+            <div class="dt"><ion-icon name="calendar-outline"></ion-icon><div><span class="t-footnote c-secondary">Vencimento</span><span class="t-headline">{{ dm(due()) }}</span></div></div>
+          </div>
+          <ion-button expand="block" class="tonal" (click)="invoice()">Ver fatura detalhada</ion-button>
+        </div>
+      </div>
+
+      <div class="pad">
+        <mf-section-header title="Compras recentes" action="Ver todas" (actionClick)="seeAll()"></mf-section-header>
+        @if (recent().length) {
+          <div class="mf-list">
+            @for (t of recent(); track t.id) {
+              <button class="mf-reset tx" type="button" (click)="openTx(t.id)">
+                <mf-category-icon [icon]="store.category(t.categoryId)?.icon ?? 'pricetag-outline'" [color]="store.category(t.categoryId)?.color ?? 'outros'" [size]="40"></mf-category-icon>
+                <span class="text"><span class="t-callout-sb ellipsis">{{ t.description }}</span><span class="t-footnote c-secondary">{{ catName(t.categoryId) }} · {{ short(t.date) }}</span></span>
+                <span class="t-footnote-sb c-danger nowrap">{{ -t.amount | money: 'sign' }}</span>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="mf-card mf-empty"><p class="t-footnote">Nenhuma compra recente neste cartão.</p></div>
+        }
+        <ion-button expand="block" fill="clear" (click)="newPurchase()"><ion-icon slot="start" name="add"></ion-icon>Nova compra no cartão</ion-button>
+      </div>
+
+      @if (plans().length) {
+        <div class="pad">
+          <mf-section-header title="Parcelamentos"></mf-section-header>
+          <div class="mf-list">
+            @for (p of plans(); track p.group) {
+              <div class="tx">
+                <span class="pi"><ion-icon name="layers-outline"></ion-icon></span>
+                <span class="text"><span class="t-callout-sb ellipsis">{{ p.description }}</span><span class="t-footnote c-secondary">Parcela {{ p.current }} de {{ p.total }}</span></span>
+                <span class="amt"><span class="t-footnote-sb">{{ p.amount | money }}</span><span class="t-caption1 c-tertiary">/mês</span></span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="body pad">
+      <div class="mf-card mf-empty">
+        <ion-icon name="card-outline"></ion-icon>
+        <p class="t-headline">Nenhum cartão cadastrado</p>
+        <p class="t-footnote">Cadastre seus cartões para acompanhar faturas, limite e parcelamentos.</p>
+        <ion-button class="mf-small" (click)="add()">Adicionar cartão</ion-button>
+      </div>
+    </div>
+  }
+</ion-content>

@@ -1,7 +1,7 @@
 import { Account, AppData, Budget, Category, CreditCard, Goal, Transaction } from '../models/models';
 import { addMonths, monthKey, round2 } from '../utils/format';
 
-export const DATA_VERSION = 1;
+export const DATA_VERSION = 3;
 
 export const DEFAULT_CATEGORIES: Category[] = [
   // Despesas (padrão)
@@ -82,6 +82,12 @@ const CURRENT_MONTH: Record<string, { total: number; count: number }> = {
 
 /** receitas e despesas dos 5 meses anteriores (gráfico Receitas x Despesas) */
 const HISTORY = [
+  { income: 9200, expense: 8100 },
+  { income: 8700, expense: 7200 },
+  { income: 8700, expense: 6600 },
+  { income: 9000, expense: 6900 },
+  { income: 8950, expense: 7100 },
+  { income: 9300, expense: 6700 },
   { income: 8900, expense: 6800 },
   { income: 9100, expense: 7250 },
   { income: 8750, expense: 6100 },
@@ -100,7 +106,7 @@ const TARGET_BALANCES: Record<string, number> = {
 
 export function buildSeed(now = new Date()): AppData {
   const rand = rng(20261126);
-  const created = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString();
+  const created = new Date(now.getFullYear(), now.getMonth() - 12, 1).toISOString();
   const accounts: Account[] = [
     { id: 'a_nubank', name: 'Nubank', kind: 'digital', detail: 'ag. 0001', icon: 'phone-portrait-outline', color: 'educacao', initialBalance: 0, active: true, includeInTotal: true, createdAt: created },
     { id: 'a_itau', name: 'Itaú', kind: 'corrente', detail: 'ag. 1234', icon: 'business-outline', color: 'alimentacao', initialBalance: 0, active: true, includeInTotal: true, createdAt: created },
@@ -110,8 +116,8 @@ export function buildSeed(now = new Date()): AppData {
   ];
 
   const cards: CreditCard[] = [
-    { id: 'k_platinum', name: 'Cartão Platinum', brand: 'Mastercard', last4: '4821', limit: 12000, closingDay: 3, dueDay: 10, theme: 'platinum', accountId: 'a_itau' },
-    { id: 'k_nubank', name: 'Nubank Ultravioleta', brand: 'Mastercard', last4: '7710', limit: 8500, closingDay: 28, dueDay: 5, theme: 'roxo', accountId: 'a_nubank' },
+    { id: 'k_platinum', name: 'Cartão Platinum', bank: 'Banco Digital', tier: 'Platinum', brand: 'Mastercard', last4: '4821', limit: 12000, closingDay: 3, dueDay: 10, theme: 'platinum', accountId: 'a_itau' },
+    { id: 'k_black', name: 'Cartão Black', bank: 'Banco Tradicional', tier: 'Black', brand: 'Visa', last4: '0937', limit: 20000, closingDay: 8, dueDay: 15, theme: 'grafite', accountId: 'a_itau' },
   ];
 
   const tx: Transaction[] = [];
@@ -133,7 +139,7 @@ export function buildSeed(now = new Date()): AppData {
 
   // ---------- Meses anteriores ----------
   HISTORY.forEach((h, i) => {
-    const key = addMonths(curKey, i - 5);
+    const key = addMonths(curKey, i - HISTORY.length);
     // receitas
     mk({ type: 'income', description: 'Salário — Acme Ltda', amount: 8650, categoryId: 'c_salario', accountId: 'a_itau', date: dayInMonth(key, 5, 9, 0) });
     const extra = round2(h.income - 8650);
@@ -192,6 +198,29 @@ export function buildSeed(now = new Date()): AppData {
     usedTotals[cat].count++;
   });
 
+  // Parcelamentos no cartão (parcelas passadas quitadas; atual na fatura aberta; futuras agendadas)
+  const plans: Array<[string, string, number, number, number]> = [
+    // [descrição, categoria, valor da parcela, parcela atual, total]
+    ['Notebook Dell Inspiron', 'c_compras', 450, 3, 10],
+    ['Passagem aérea — Tóquio', 'c_outros_d', 380, 2, 6],
+    ['Geladeira Frost Free', 'c_compras', 289.9, 8, 12],
+  ];
+  plans.forEach(([desc, cat, amount, current, total], gi) => {
+    for (let i = 1; i <= total; i++) {
+      const offset = i - current;
+      const date = new Date(now.getFullYear(), now.getMonth() + offset, Math.min(2, today), 11, 0);
+      if (offset === 0 && date > now) date.setDate(1);
+      tx.push({
+        id: `t_inst_${gi}_${i}`, type: 'expense', description: desc, amount, categoryId: cat, accountId: 'a_itau', cardId: 'k_platinum',
+        date: date.toISOString(), paid: true, invoicePaid: offset < 0, createdAt: date.toISOString(),
+        installment: { group: `ig_${gi}`, index: i, total },
+      });
+      if (offset === 0) {
+        usedTotals[cat] = { total: round2((usedTotals[cat]?.total ?? 0) + amount), count: (usedTotals[cat]?.count ?? 0) + 1 };
+      }
+    }
+  });
+
   // Completa cada categoria até o total do mês (dias anteriores aos nomeados)
   Object.entries(CURRENT_MONTH).forEach(([cat, target]) => {
     const used = usedTotals[cat] ?? { total: 0, count: 0 };
@@ -216,6 +245,11 @@ export function buildSeed(now = new Date()): AppData {
     if (i % 3 === 0) { t.cardId = 'k_platinum'; t.invoicePaid = true; }
   });
 
+  // compras no cartão são debitadas da conta que paga a fatura
+  tx.forEach((t) => {
+    if (t.cardId) t.accountId = cards.find((c) => c.id === t.cardId)!.accountId;
+  });
+
   // Saldos iniciais para que os saldos atuais batam com o design
   accounts.forEach((a) => {
     const net = tx
@@ -235,14 +269,16 @@ export function buildSeed(now = new Date()): AppData {
     amounts.map((amount, i) => ({
       id: `gc_${startOffset}_${i}`,
       amount,
-      date: new Date(now.getFullYear(), now.getMonth() - (amounts.length - 1 - i), 8).toISOString(),
-      accountId: 'a_caixa',
+      date: new Date(now.getFullYear(), now.getMonth() - (amounts.length - 1 - i), Math.min(5, today)).toISOString(),
+      note: i === 0 ? 'Valor inicial' : undefined,
     }));
 
   const goals: Goal[] = [
     { id: 'g_reserva', name: 'Reserva de emergência', icon: 'shield-checkmark-outline', color: 'salario', target: 20000, deadline: `${now.getFullYear() + 1}-12`, contributions: contrib([7000, 1200, 1000, 1100, 1000, 1100], 1), createdAt: created },
     { id: 'g_japao', name: 'Viagem ao Japão', icon: 'airplane-outline', color: 'lazer', target: 18000, deadline: `${now.getFullYear() + 1}-07`, contributions: contrib([2500, 700, 600, 800, 700], 2), createdAt: created },
     { id: 'g_notebook', name: 'Novo notebook', icon: 'laptop-outline', color: 'educacao', target: 6500, deadline: `${now.getFullYear() + 1}-03`, contributions: contrib([1600, 800, 900, 800], 3), createdAt: created },
+    { id: 'g_invest', name: 'Investimento pessoal', icon: 'trending-up-outline', color: 'rendimentos', target: 10000, deadline: `${now.getFullYear()}-12`, contributions: contrib([5000, 1000, 1000, 1000], 4), createdAt: created },
+    { id: 'g_camera', name: 'Câmera mirrorless', icon: 'sparkles-outline', color: 'assinaturas', target: 4800, deadline: `${now.getFullYear()}-08`, contributions: contrib([2400, 1200, 1200], 5).map((c, i) => ({ ...c, date: new Date(now.getFullYear(), now.getMonth() - 6 + i, 8).toISOString() })), createdAt: created, completedAt: new Date(now.getFullYear(), now.getMonth() - 3, 8).toISOString() },
   ];
 
   return {
@@ -261,6 +297,8 @@ export function buildSeed(now = new Date()): AppData {
       savingsGoalPct: 30,
       currency: 'BRL',
       startOfMonthDay: 1,
+      appLock: 'off',
+      dateFormat: 'DD/MM/AAAA',
     },
     accounts,
     categories: [...DEFAULT_CATEGORIES, ...SEED_CUSTOM],

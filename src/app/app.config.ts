@@ -6,6 +6,7 @@ import localePt from '@angular/common/locales/pt';
 import { routes } from './app.routes';
 import { StoreService } from './core/services/store.service';
 import { ThemeService } from './core/services/theme.service';
+import { NotificationService } from './core/services/notification.service';
 import { registerIcons } from './core/icons';
 
 registerLocaleData(localePt);
@@ -22,6 +23,7 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const store = inject(StoreService);
       inject(ThemeService);
+      inject(NotificationService);
       return store.load();
     }),
   ],

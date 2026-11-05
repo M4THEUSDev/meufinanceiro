@@ -1,0 +1,132 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais" text="Mais"></ion-back-button></ion-buttons>
+    <ion-title>Configurações</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="mf-page">
+  <input #photo type="file" accept="image/*" hidden (change)="onPhoto($event)" />
+  <input #importFile type="file" accept="application/json,.json" hidden (change)="onImport($event)" />
+
+  <div class="body">
+    <div class="pad">
+      <p class="mf-label">Perfil</p>
+      <div class="mf-group elevated">
+        <div class="profile">
+          <button class="mf-reset avatar" type="button" (click)="changePhoto()" aria-label="Alterar foto">
+            @if (s().photo) { <img [src]="s().photo" alt="" /> } @else { {{ initials() }} }
+          </button>
+          <div class="pt">
+            <span class="t-headline">Foto do perfil</span>
+            <span class="links">
+              <button class="mf-reset t-subhead c-primary-shade" type="button" (click)="changePhoto()">Alterar foto</button>
+              @if (s().photo) { <button class="mf-reset t-subhead c-danger" type="button" (click)="removePhoto()">Remover</button> }
+            </span>
+          </div>
+        </div>
+        <button class="mf-row" type="button" (click)="editName()">
+          <span class="lead" style="--lead: var(--mf-category-transporte)"><ion-icon name="person-outline"></ion-icon></span>
+          <span class="label">Nome</span><span class="value">{{ s().userName }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="editEmail()">
+          <span class="lead" style="--lead: var(--mf-category-educacao)"><ion-icon name="mail-outline"></ion-icon></span>
+          <span class="label">E-mail</span><span class="value">{{ s().email }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="pad">
+      <p class="mf-label">Aparência</p>
+      <div class="mf-card themes" role="radiogroup" aria-label="Tema">
+        @for (t of themes; track t.id) {
+          <button class="mf-reset theme" type="button" role="radio" [attr.aria-checked]="s().theme === t.id" [class.on]="s().theme === t.id" (click)="set('theme', t.id)">
+            <span class="phone" [class]="'phone ' + t.id"><i class="bar"></i><i></i><i></i><i></i></span>
+            <span class="t-subhead" [class.t-subhead-sb]="s().theme === t.id">{{ t.label }}</span>
+            <span class="radio"><ion-icon name="checkmark"></ion-icon></span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="pad">
+      <p class="mf-label">Preferências</p>
+      <div class="mf-group elevated">
+        <button class="mf-row" type="button" (click)="pickCurrency()">
+          <span class="lead" style="--lead: var(--mf-category-salario)"><ion-icon name="cash-outline"></ion-icon></span>
+          <span class="label">Moeda</span><span class="value">Real (BRL)</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="pickDateFormat()">
+          <span class="lead" style="--lead: var(--mf-category-transporte)"><ion-icon name="calendar-outline"></ion-icon></span>
+          <span class="label">Formato de data</span><span class="value">{{ s().dateFormat }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <div class="mf-row">
+          <span class="lead" style="--lead: var(--ion-color-danger)"><ion-icon name="notifications-outline"></ion-icon></span>
+          <span class="label grow">Notificações<span class="sub">Vencimentos e orçamentos</span></span>
+          <ion-toggle [checked]="s().notifications" (ionChange)="set('notifications', $any($event).detail.checked)" aria-label="Notificações"></ion-toggle>
+        </div>
+        <div class="mf-row">
+          <span class="lead" style="--lead: var(--mf-text-secondary)"><ion-icon name="eye-off-outline"></ion-icon></span>
+          <span class="label grow">Ocultar valores<span class="sub">Mascara saldos e valores no app</span></span>
+          <ion-toggle [checked]="s().hideValues" (ionChange)="set('hideValues', $any($event).detail.checked)" aria-label="Ocultar valores"></ion-toggle>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" id="seguranca">
+      <p class="mf-label">Segurança</p>
+      <div class="mf-group elevated">
+        <div class="mf-row">
+          <span class="lead" style="--lead: var(--ion-color-success)"><ion-icon name="scan-outline"></ion-icon></span>
+          <span class="label grow">Desbloquear com Face ID</span>
+          <ion-toggle [checked]="s().faceId" (ionChange)="set('faceId', $any($event).detail.checked)" aria-label="Face ID"></ion-toggle>
+        </div>
+        <button class="mf-row" type="button" (click)="pickLock()">
+          <span class="lead" style="--lead: var(--mf-category-moradia)"><ion-icon name="lock-closed-outline"></ion-icon></span>
+          <span class="label">Bloqueio do app</span><span class="value">{{ lockLabel() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="changePassword()">
+          <span class="lead" style="--lead: var(--mf-category-alimentacao)"><ion-icon name="key-outline"></ion-icon></span>
+          <span class="label grow">Alterar senha</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="sessions()">
+          <span class="lead" style="--lead: var(--mf-category-reembolso)"><ion-icon name="phone-portrait-outline"></ion-icon></span>
+          <span class="label">Sessões ativas</span><span class="value">1</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+      </div>
+      <p class="note t-footnote c-secondary">Com o bloqueio ativo, o app exige Face ID ao voltar do segundo plano. Valores podem ser ocultados no Início.</p>
+    </div>
+
+    <div class="pad">
+      <p class="mf-label">Dados e privacidade</p>
+      <div class="mf-group elevated">
+        <button class="mf-row" type="button" (click)="exportCsv()">
+          <span class="lead" style="--lead: var(--mf-category-extra)"><ion-icon name="download-outline"></ion-icon></span>
+          <span class="label grow">Exportar dados (CSV)</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="backup()">
+          <span class="lead" style="--lead: var(--mf-category-transporte)"><ion-icon name="cloud-download-outline"></ion-icon></span>
+          <span class="label grow">Fazer backup (JSON)</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="importBackup()">
+          <span class="lead" style="--lead: var(--mf-category-educacao)"><ion-icon name="cloud-upload-outline"></ion-icon></span>
+          <span class="label grow">Restaurar backup</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row" type="button" (click)="privacy()">
+          <span class="lead" style="--lead: var(--mf-text-secondary)"><ion-icon name="shield-checkmark-outline"></ion-icon></span>
+          <span class="label grow">Privacidade</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
+        </button>
+        <button class="mf-row danger" type="button" (click)="deleteAll()">
+          <span class="lead" style="--lead: var(--ion-color-danger)"><ion-icon name="trash-outline"></ion-icon></span>
+          <span class="label grow">Excluir todos os dados</span>
+        </button>
+      </div>
+      <p class="note t-footnote c-secondary">Seus dados ficam armazenados apenas neste iPhone: somente você acessa suas informações.</p>
+    </div>
+
+    <div class="pad">
+      <ion-button expand="block" class="tonal-danger" (click)="logout()"><ion-icon slot="start" name="log-out-outline"></ion-icon>Sair da conta</ion-button>
+      <p class="note t-caption1 c-tertiary center">MeuFinanceiro {{ version }} (1)</p>
+    </div>
+  </div>
+</ion-content>

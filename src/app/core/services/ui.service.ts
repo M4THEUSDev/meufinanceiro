@@ -16,20 +16,21 @@ export class UiService {
     action?: { text: string; handler: () => void };
     duration?: number;
   }): Promise<void> {
-    const icon = { success: 'checkmark-circle', danger: 'alert-circle', warning: 'warning', info: 'information-circle' }[opts.tone ?? 'success'];
+    const icon = { success: 'checkmark-circle-outline', danger: 'trash-outline', warning: 'warning-outline', info: 'information-circle-outline' }[opts.tone ?? 'success'];
     const t = await this.toastCtrl.create({
       header: opts.title,
       message: opts.message,
       icon,
       position: 'top',
-      duration: opts.duration ?? 3000,
+      duration: opts.duration ?? (opts.action ? 4000 : 2500),
       cssClass: ['mf-toast', `mf-toast-${opts.tone ?? 'success'}`],
       swipeGesture: 'vertical',
       buttons: opts.action ? [{ text: opts.action.text, handler: opts.action.handler }] : [],
     });
     await t.present();
-    if (opts.tone === 'danger') this.notify('error');
-    else this.notify('success');
+    if (opts.tone === 'danger') this.impact('medium');
+    else if (opts.tone === 'warning') this.notify('warning');
+    else if (opts.tone !== 'info') this.notify('success');
   }
 
   /** Alert de confirmação destrutiva (Figma · Alert) */
@@ -50,6 +51,12 @@ export class UiService {
 
   tap(): void {
     if (Capacitor.isNativePlatform()) void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+  }
+
+  impact(style: 'light' | 'medium' | 'heavy'): void {
+    if (!Capacitor.isNativePlatform()) return;
+    const map = { light: ImpactStyle.Light, medium: ImpactStyle.Medium, heavy: ImpactStyle.Heavy };
+    void Haptics.impact({ style: map[style] }).catch(() => undefined);
   }
 
   notify(type: 'success' | 'warning' | 'error'): void {

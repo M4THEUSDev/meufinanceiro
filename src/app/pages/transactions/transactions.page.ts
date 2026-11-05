@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 import {
   ActionSheetController, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonItemOption, IonItemOptions, IonItemSliding,
-  IonSearchbar, IonTitle, IonToolbar, ModalController,
+  IonRefresher, IonRefresherContent, IonSearchbar, IonTitle, IonToolbar, ModalController,
 } from '@ionic/angular/standalone';
 import { Transaction } from '../../core/models/models';
 import { StoreService, defaultFilters } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
-import { dayHeader, monthKey, monthLabel, round2, startOfDay } from '../../core/utils/format';
+import { MONTHS, dayHeader, monthKey, monthLabel, parseMonthKey, round2, startOfDay } from '../../core/utils/format';
 import { TransactionItemComponent } from '../../shared/components/transaction-item.component';
 import { openPicker } from '../../shared/components/picker.modal';
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
@@ -27,7 +27,7 @@ interface DayGroup {
   selector: 'mf-transactions',
   imports: [
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonContent, IonIcon, IonSearchbar, IonItemSliding, IonItemOptions,
-    IonItemOption, TransactionItemComponent, MoneyPipe,
+    IonItemOption, IonRefresher, IonRefresherContent, TransactionItemComponent, MoneyPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './transactions.page.html',
@@ -86,7 +86,12 @@ export class TransactionsPage {
     const f = this.filters();
     return f.type !== 'all' || f.categoryIds.length > 0 || !!f.accountId || f.period !== 'month' || f.month !== monthKey(new Date()) || !!f.search;
   });
-  readonly emptyHint = signal('');
+  readonly emptyMonth = computed(() => MONTHS[parseMonthKey(this.filters().month).getMonth()]);
+
+  refresh(ev: Event): void {
+    // dados locais: recarrega do armazenamento e encerra o indicador
+    void this.store.load().then(() => (ev.target as HTMLIonRefresherElement).complete());
+  }
 
   search(v: string | null | undefined): void {
     this.filters.update((f) => ({ ...f, search: v ?? '' }));

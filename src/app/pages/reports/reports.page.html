@@ -1,0 +1,143 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais" text="Mais"></ion-back-button></ion-buttons>
+    <ion-title>Relatórios</ion-title>
+    <ion-buttons slot="end"><button class="mf-reset mf-action" type="button" aria-label="Exportar" (click)="export()"><ion-icon name="share-outline"></ion-icon></button></ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border"><ion-toolbar><ion-title size="large">Relatórios</ion-title></ion-toolbar></ion-header>
+
+  <div class="body">
+    <div class="pad">
+      <ion-segment mode="ios" [value]="period()" (ionChange)="setPeriod($any($event).detail.value)">
+        <ion-segment-button value="month">Mês</ion-segment-button>
+        <ion-segment-button value="quarter">Trimestre</ion-segment-button>
+        <ion-segment-button value="year">Ano</ion-segment-button>
+      </ion-segment>
+      <div class="nav">
+        <button class="mf-reset round" type="button" aria-label="Período anterior" (click)="shift(-1)"><ion-icon name="chevron-back"></ion-icon></button>
+        <span class="t-headline">{{ label() }}</span>
+        <button class="mf-reset round" type="button" aria-label="Próximo período" [disabled]="!canNext()" (click)="shift(1)"><ion-icon name="chevron-forward"></ion-icon></button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kh"><span class="ki inc"><ion-icon name="arrow-down"></ion-icon></span><span class="t-footnote c-secondary">Receitas</span></div>
+        <span class="amt nowrap">{{ cur().income | money: 'int' }}</span>
+        <span class="t-caption1" [class.c-success]="cur().income >= prev().income" [class.c-danger]="cur().income < prev().income">{{ incomeDelta() }}</span>
+      </div>
+      <div class="kpi">
+        <div class="kh"><span class="ki exp"><ion-icon name="arrow-up"></ion-icon></span><span class="t-footnote c-secondary">Despesas</span></div>
+        <span class="amt nowrap">{{ cur().expense | money: 'int' }}</span>
+        <span class="t-caption1" [class.c-danger]="cur().expense > prev().expense" [class.c-success]="cur().expense <= prev().expense">{{ expenseDelta() }}</span>
+      </div>
+      <div class="kpi">
+        <div class="kh"><span class="ki sav"><ion-icon name="trending-up"></ion-icon></span><span class="t-footnote c-secondary">Poupança</span></div>
+        <span class="amt nowrap">{{ pct(savings(), 1) }}</span>
+        <span class="t-caption1" [class.c-success]="savings() >= prevSavings()" [class.c-danger]="savings() < prevSavings()">{{ savingsDelta() }}</span>
+      </div>
+    </div>
+
+    <div class="pad">
+      <div class="mf-card section">
+        <div><p class="t-headline">Evolução mensal</p><p class="t-footnote c-secondary">Últimos 12 meses</p></div>
+        <div class="legend t-caption1 c-secondary"><span><i class="dot inc"></i>Receitas</span><span><i class="dot exp"></i>Despesas</span></div>
+        <mf-line-chart [data]="evolution()" [active]="lineIndex() < 0 ? evolution().length - 1 : lineIndex()" (activeChange)="lineIndex.set($event)"></mf-line-chart>
+      </div>
+    </div>
+
+    <div class="pad">
+      <div class="mf-card section">
+        <div><p class="t-headline">Receitas x Despesas</p><p class="t-footnote c-secondary">Resultado líquido por mês</p></div>
+        <div class="bars">
+          @for (b of netBars(); track b.key) {
+            <div class="bcol">
+              <span class="t-caption2" [class.c-primary-shade]="b.last && b.net >= 0" [class.c-danger]="b.net < 0" [class.c-tertiary]="!b.last && b.net >= 0">{{ store.hidden() ? '•••' : b.text }}</span>
+              <i [style.height.px]="b.h" [class.last]="b.last" [class.neg]="b.net < 0"></i>
+              <span class="t-caption1 c-tertiary" [class.strong]="b.last">{{ b.label }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="pad">
+      <div class="mf-card section">
+        <div><p class="t-headline">Gastos por categoria</p><p class="t-footnote c-secondary">Toque em uma fatia para ver detalhes</p></div>
+        @if (cats().length) {
+          <div class="donut-wrap">
+            <mf-donut [segments]="donut()" [size]="200">
+              @if (selected(); as s) {
+                <span class="t-footnote c-secondary">{{ s.c.name }}</span>
+                <span class="t-title2">{{ pct(s.share * 100) }}</span>
+                <span class="t-footnote-sb">{{ fmt(s.total) }}</span>
+              }
+            </mf-donut>
+          </div>
+          <div class="chips">
+            @for (x of cats(); track x.c.id) {
+              <button type="button" class="badge" [class.on]="selectedId() === x.c.id" [style.--c]="'var(--mf-category-' + x.c.color + ')'" (click)="slice.set(x.c.id)">
+                <i></i>{{ x.c.name }} {{ pct(x.share * 100) }}
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="mf-empty"><ion-icon name="pie-chart-outline"></ion-icon><p class="t-footnote">Sem despesas no período.</p></div>
+        }
+      </div>
+    </div>
+
+    @if (top().length) {
+      <div class="pad">
+        <div class="mf-card section">
+          <div><p class="t-headline">Maiores despesas</p><p class="t-footnote c-secondary">Top 5 categorias do período</p></div>
+          @for (x of top(); track x.c.id) {
+            <div class="rank">
+              <span class="pos t-footnote-sb">{{ $index + 1 }}</span>
+              <div class="rk">
+                <div class="rr"><span class="t-subhead-sb">{{ x.c.name }}</span><span class="t-footnote-sb">{{ fmt(x.total) }}</span></div>
+                <div class="rb"><i [style.width.%]="(x.total / top()[0].total) * 100" [style.background]="'var(--mf-category-' + x.c.color + ')'"></i></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="pad">
+        <div class="mf-card section">
+          <div><p class="t-headline">Comparação entre períodos</p><p class="t-footnote c-secondary">{{ compareTitle() }}</p></div>
+          <table class="cmp">
+            <thead><tr class="t-caption2 c-tertiary"><th>Categoria</th><th>{{ prevLabel() }}</th><th>{{ curLabel() }}</th><th>Var.</th></tr></thead>
+            <tbody>
+              @for (r of compare(); track r.name) {
+                <tr class="t-footnote">
+                  <td>{{ r.name }}</td>
+                  <td>{{ store.hidden() ? '•••' : r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }}</td>
+                  <td>{{ store.hidden() ? '•••' : r.cur.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }}</td>
+                  <td class="t-footnote-sb" [class.c-danger]="(r.v ?? 0) > 0" [class.c-success]="(r.v ?? 0) < 0">{{ r.v === null ? 'novo' : (r.v > 0 ? '+' : r.v < 0 ? '−' : '') + Math.abs(r.v) + '%' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <p class="t-caption1 c-tertiary">Despesas maiores que no período anterior aparecem em vermelho.</p>
+        </div>
+      </div>
+    }
+
+    <div class="pad">
+      <div class="grid4">
+        <div class="kpi"><span class="t-footnote c-secondary">Maior despesa</span><span class="t-headline">{{ fmt(stats().biggest) }}</span></div>
+        <div class="kpi"><span class="t-footnote c-secondary">Média diária</span><span class="t-headline">{{ fmt(stats().daily) }}</span></div>
+        <div class="kpi"><span class="t-footnote c-secondary">Transações registradas</span><span class="t-headline">{{ stats().count }}</span></div>
+        <div class="kpi"><span class="t-footnote c-secondary">Dias com saldo positivo</span><span class="t-headline">{{ stats().positive }}/{{ stats().days }}</span></div>
+      </div>
+    </div>
+
+    <div class="pad">
+      <ion-button expand="block" class="tonal" (click)="export()"><ion-icon slot="start" name="download-outline"></ion-icon>Exportar relatório (PDF ou CSV)</ion-button>
+    </div>
+  </div>
+</ion-content>
