@@ -5,6 +5,7 @@ import {
 } from '@ionic/angular/standalone';
 import { Settings, ThemePref } from '../../core/models/models';
 import { AuthService } from '../../core/services/auth.service';
+import { BiometricService } from '../../core/services/biometric.service';
 import { ExportService } from '../../core/services/export.service';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
@@ -23,6 +24,7 @@ import { APP_VERSION } from '../splash/splash.page';
 export class SettingsPage {
   private readonly store = inject(StoreService);
   private readonly auth = inject(AuthService);
+  protected readonly bio = inject(BiometricService);
   private readonly ui = inject(UiService);
   private readonly exporter = inject(ExportService);
   private readonly alert = inject(AlertController);
@@ -53,6 +55,21 @@ export class SettingsPage {
   set<K extends keyof Settings>(k: K, v: Settings[K]): void {
     this.store.updateSettings({ [k]: v } as Partial<Settings>);
     this.ui.tap();
+  }
+
+  /** ativar Face ID exige uma autenticação biométrica bem-sucedida */
+  async toggleFaceId(ev: CustomEvent<{ checked: boolean }>): Promise<void> {
+    const toggle = ev.target as HTMLIonToggleElement;
+    if (!ev.detail.checked) {
+      this.set('faceId', false);
+      return;
+    }
+    const ok = await this.bio.authenticate('Ative o desbloqueio com Face ID');
+    if (ok) this.set('faceId', true);
+    else {
+      toggle.checked = false;
+      await this.ui.toast({ title: 'Face ID não ativado', message: 'Verifique se o Face ID está configurado neste iPhone.', tone: 'warning' });
+    }
   }
 
   changePhoto(): void {

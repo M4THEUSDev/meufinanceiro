@@ -16,8 +16,20 @@ npm run test:ci      # testes unitários (Karma + Chrome headless)
 npm run ios          # build + cap sync + abre o projeto no Xcode (requer macOS)
 ```
 
+## Publicar na Vercel (usar no iPhone pela Tela de Início)
+
+O projeto já vem com `vercel.json` (build `npm run build`, saída `www`, rotas SPA) e é um PWA
+(manifesto + service worker): instala na Tela de Início com o nome **Finanças**, abre em tela cheia e funciona offline.
+
+1. Em vercel.com › **Add New › Project**, importe este repositório (as configurações são lidas do `vercel.json`).
+2. Após o deploy, abra a URL no **Safari** do iPhone › **Compartilhar** › **Adicionar à Tela de Início**.
+3. Novas versões publicadas aparecem com o aviso “Nova versão disponível” dentro do app.
+
+Na versão web os dados ficam no armazenamento do Safari daquele aparelho — use **Configurações › Fazer backup (JSON)**
+de vez em quando. Face ID e notificações locais existem apenas no app nativo (`ios/`).
+
 No primeiro acesso: Splash → Onboarding → Login. O primeiro login no aparelho define a senha local
-(mín. 6 caracteres); o Face ID pode ser ativado depois em **Configurações › Segurança**.
+(mín. 6 caracteres); no app nativo, o Face ID (biometria real do iPhone) pode ser ativado depois em **Configurações › Segurança**.
 
 ## O que está implementado
 

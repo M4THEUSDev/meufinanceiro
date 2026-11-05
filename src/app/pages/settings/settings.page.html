@@ -76,11 +76,13 @@
     <div class="pad" id="seguranca">
       <p class="mf-label">Segurança</p>
       <div class="mf-group elevated">
-        <div class="mf-row">
-          <span class="lead" style="--lead: var(--ion-color-success)"><ion-icon name="scan-outline"></ion-icon></span>
-          <span class="label grow">Desbloquear com Face ID</span>
-          <ion-toggle [checked]="s().faceId" (ionChange)="set('faceId', $any($event).detail.checked)" aria-label="Face ID"></ion-toggle>
-        </div>
+        @if (bio.native) {
+          <div class="mf-row">
+            <span class="lead" style="--lead: var(--ion-color-success)"><ion-icon name="scan-outline"></ion-icon></span>
+            <span class="label grow">Desbloquear com Face ID</span>
+            <ion-toggle [checked]="s().faceId" (ionChange)="toggleFaceId($any($event))" aria-label="Face ID"></ion-toggle>
+          </div>
+        }
         <button class="mf-row" type="button" (click)="pickLock()">
           <span class="lead" style="--lead: var(--mf-category-moradia)"><ion-icon name="lock-closed-outline"></ion-icon></span>
           <span class="label">Bloqueio do app</span><span class="value">{{ lockLabel() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
@@ -94,7 +96,7 @@
           <span class="label">Sessões ativas</span><span class="value">1</span><ion-icon class="chev" name="chevron-forward"></ion-icon>
         </button>
       </div>
-      <p class="note t-footnote c-secondary">Com o bloqueio ativo, o app exige Face ID ao voltar do segundo plano. Valores podem ser ocultados no Início.</p>
+      <p class="note t-footnote c-secondary">Com o bloqueio ativo, o app exige {{ bio.native ? 'Face ID ou senha' : 'a senha' }} ao voltar do segundo plano. Valores podem ser ocultados no Início.</p>
     </div>
 
     <div class="pad">

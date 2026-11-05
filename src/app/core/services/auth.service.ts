@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { BiometricService } from './biometric.service';
 import { StoreService } from './store.service';
 
 async function sha256(text: string): Promise<string> {
@@ -15,10 +16,11 @@ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly store = inject(StoreService);
+  private readonly bio = inject(BiometricService);
 
   get faceIdAvailable(): boolean {
     const s = this.store.settings();
-    return !!s.hasLoggedBefore && s.faceId;
+    return this.bio.native && !!s.hasLoggedBefore && s.faceId;
   }
 
   async login(email: string, password: string): Promise<{ ok: true } | { ok: false; field: 'email' | 'password'; message: string }> {
@@ -37,8 +39,7 @@ export class AuthService {
 
   async biometricLogin(): Promise<boolean> {
     if (!this.faceIdAvailable) return false;
-    // Simula o prompt biométrico do sistema
-    await new Promise((r) => setTimeout(r, 700));
+    if (!(await this.bio.authenticate('Entre no MeuFinanceiro'))) return false;
     this.store.updateSettings({ loggedIn: true, lastActiveAt: new Date().toISOString() });
     return true;
   }
