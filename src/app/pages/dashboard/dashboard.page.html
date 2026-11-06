@@ -56,6 +56,18 @@
       </div>
     </div>
 
+    <!-- Ganhos e dívidas -->
+    <div class="mf-section">
+      <button class="mf-reset mf-card owe" type="button" (click)="go('/tabs/mais/financas')">
+        <div class="owe-head"><span class="t-headline">Ganhos e dívidas</span><ion-icon name="chevron-forward"></ion-icon></div>
+        <div class="owe-grid">
+          <div><span class="t-caption1 c-secondary">A receber</span><span class="t-footnote-sb c-success nowrap">{{ toReceive() | money: 'int' }}</span></div>
+          <div><span class="t-caption1 c-secondary">A pagar</span><span class="t-footnote-sb c-danger nowrap">{{ toPay() | money: 'int' }}</span></div>
+          <div><span class="t-caption1 c-secondary">Dívidas</span><span class="t-footnote-sb nowrap">{{ store.debtSummary().total | money: 'int' }}</span></div>
+        </div>
+      </button>
+    </div>
+
     <!-- Gráficos -->
     <div class="mf-section">
       <div class="mf-card chart">
@@ -128,7 +140,7 @@
       <div class="mf-section">
         <mf-section-header title="Próximos vencimentos" action="Ver agenda" (actionClick)="notifications()"></mf-section-header>
         <div class="mf-list">
-          @for (b of bills(); track b.id) { <mf-bill-item [bill]="b" (click)="openBill(b.kind, b.refId)"></mf-bill-item> }
+          @for (b of bills(); track b.id) { <mf-bill-item [bill]="b" (click)="openBill(b)"></mf-bill-item> }
         </div>
       </div>
     }

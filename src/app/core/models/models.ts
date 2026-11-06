@@ -44,6 +44,10 @@ export interface Transaction {
   invoicePaid?: boolean;
   /** compra parcelada: id do grupo + parcela atual / total */
   installment?: { group: string; index: number; total: number };
+  /** id da linha do extrato importado (OFX FITID ou hash) — evita duplicar */
+  importId?: string;
+  /** parcela de dívida (empréstimo/financiamento) paga por esta transação */
+  debtId?: string;
   /** ISO date-time */
   date: string;
   paid: boolean;
@@ -133,6 +137,28 @@ export interface Settings {
   hasLoggedBefore?: boolean;
 }
 
+export type DebtKind = 'emprestimo' | 'financiamento' | 'consignado' | 'cheque_especial' | 'outro';
+
+/** Empréstimo, financiamento ou outra dívida parcelada fora do cartão */
+export interface Debt {
+  id: string;
+  name: string;
+  /** credor, ex.: "Santander" */
+  creditor: string;
+  kind: DebtKind;
+  installmentAmount: number;
+  totalInstallments: number;
+  paidInstallments: number;
+  /** dia do vencimento da parcela */
+  dueDay: number;
+  /** conta de onde sai o pagamento */
+  accountId: string;
+  /** juros ao mês (%), informativo */
+  monthlyRate?: number;
+  createdAt: string;
+  notes?: string;
+}
+
 export interface AppData {
   version: number;
   settings: Settings;
@@ -142,6 +168,7 @@ export interface AppData {
   budgets: Budget[];
   goals: Goal[];
   cards: CreditCard[];
+  debts: Debt[];
 }
 
 export interface TxFilters {

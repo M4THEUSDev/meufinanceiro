@@ -1,0 +1,157 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais" text="Voltar"></ion-back-button></ion-buttons>
+    <ion-title>Ganhos e dívidas</ion-title>
+    <ion-buttons slot="end"><button class="mf-reset mf-action" type="button" aria-label="Adicionar dívida" (click)="addDebt()"><ion-icon name="add"></ion-icon></button></ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border"><ion-toolbar><ion-title size="large">Ganhos e dívidas</ion-title></ion-toolbar></ion-header>
+
+  <div class="body">
+    <!-- Patrimônio líquido -->
+    <div class="pad">
+      <div class="net">
+        <span class="t-footnote-sb">Patrimônio líquido</span>
+        <span class="t-amount-large nowrap">{{ store.netWorth() | money }}</span>
+        <div class="net-kv">
+          <div><span class="t-caption1">Saldo em contas</span><span class="t-subhead-sb">{{ store.totalBalance() | money }}</span></div>
+          <div><span class="t-caption1">Dívidas</span><span class="t-subhead-sb">{{ -debts().total | money }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <mf-month-selector class="pad-x" [(month)]="month"></mf-month-selector>
+
+    <!-- Resumo do mês -->
+    <div class="pad">
+      <div class="grid3">
+        <div class="kpi"><span class="t-caption1 c-secondary">Entra no mês</span><span class="t-headline c-success nowrap">{{ incomeTotal() | money: 'int' }}</span></div>
+        <div class="kpi"><span class="t-caption1 c-secondary">Falta pagar</span><span class="t-headline c-danger nowrap">{{ payTotal() | money: 'int' }}</span></div>
+        <div class="kpi"><span class="t-caption1 c-secondary">Sobra prevista</span><span class="t-headline nowrap" [class.c-success]="forecast() >= 0" [class.c-danger]="forecast() < 0">{{ forecast() | money: 'int' }}</span></div>
+      </div>
+    </div>
+
+    <!-- Ganhos -->
+    <div class="pad">
+      <h2 class="t-title3">Ganhos de {{ monthName() }}</h2>
+      <div class="mf-card section">
+        <div class="row-between">
+          <div><span class="t-caption1 c-secondary">Recebido</span><p class="t-amount-medium c-success">{{ received() | money }}</p></div>
+          <div class="r"><span class="t-caption1 c-secondary">A receber</span><p class="t-amount-medium c-warning">{{ toReceive() | money }}</p></div>
+        </div>
+        @if (incomeTotal() > 0) {
+          <div class="split"><i class="rec" [style.flex]="received()"></i><i class="pend" [style.flex]="toReceive()"></i></div>
+        }
+        @if (incomeAvg()) {
+          <p class="t-footnote c-secondary">
+            <ion-icon [name]="incomeVsAvg() >= 0 ? 'trending-up' : 'trending-down'" [class.c-success]="incomeVsAvg() >= 0" [class.c-danger]="incomeVsAvg() < 0"></ion-icon>
+            {{ incomeVsAvg() >= 0 ? '+' : '−' }}{{ pct(Math.abs(incomeVsAvg()), 1) }} em relação à média dos últimos meses ({{ incomeAvg() | money: 'int' }})
+          </p>
+        }
+        @if (sources().length) {
+          <p class="mf-label">De onde veio</p>
+          @for (s of sources(); track s.category.id) {
+            <div class="src">
+              <mf-category-icon [icon]="s.category.icon" [color]="s.category.color" [size]="32"></mf-category-icon>
+              <div class="grow">
+                <div class="row-between"><span class="t-subhead-sb">{{ s.category.name }}</span><span class="t-footnote-sb">{{ s.total | money }}</span></div>
+                <div class="bar"><i [style.width.%]="s.bar * 100" [style.background]="'var(--mf-category-' + s.category.color + ')'"></i></div>
+                <span class="t-caption1 c-secondary">{{ pct(s.share * 100) }} da renda · {{ s.count }} {{ s.count === 1 ? 'lançamento' : 'lançamentos' }}@if (s.pending) { · <b class="c-warning">{{ hide('R$ ' + s.pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })) }} a receber</b> }</span>
+              </div>
+            </div>
+          }
+        } @else {
+          <p class="t-footnote c-secondary">Nenhuma receita registrada neste mês.</p>
+        }
+      </div>
+      @if (pendingIncome().length) {
+        <p class="mf-label">A receber</p>
+        <div class="mf-list">
+          @for (t of pendingIncome(); track t.id) {
+            <div class="row-item">
+              <button class="mf-reset grow left" type="button" (click)="openTx(t.id)">
+                <span class="t-subhead-sb ellipsis">{{ t.description }}</span>
+                <span class="t-caption1 c-secondary">{{ date(t.date) }} · {{ catOf(t.categoryId)?.name }} · {{ store.account(t.accountId)?.name }}</span>
+              </button>
+              <span class="t-footnote-sb c-success nowrap">{{ t.amount | money: 'sign' }}</span>
+              <ion-button size="small" class="tonal mini" (click)="markReceived(t.id)">Recebi</ion-button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- A pagar -->
+    <div class="pad">
+      <h2 class="t-title3">A pagar em {{ monthName() }}</h2>
+      @if (payables().length) {
+        @if (overdueTotal()) {
+          <div class="alert t-footnote"><ion-icon name="alert-circle-outline"></ion-icon>Você tem {{ overdueTotal() | money }} em contas vencidas.</div>
+        }
+        <div class="mf-list">
+          @for (b of payables(); track b.id) { <mf-bill-item [bill]="b" (click)="openBill(b)"></mf-bill-item> }
+        </div>
+        <p class="note t-footnote c-secondary">Toque em uma conta para marcar como paga. Parcelas de empréstimos são lançadas como despesa ao pagar.</p>
+      } @else {
+        <div class="mf-card mf-empty"><ion-icon name="checkmark-done-outline"></ion-icon><p class="t-headline">Nada pendente</p><p class="t-footnote">Não há contas, faturas ou parcelas a pagar neste mês.</p></div>
+      }
+    </div>
+
+    <!-- Dívidas -->
+    <div class="pad">
+      <div class="row-between"><h2 class="t-title3">Dívidas</h2><span class="t-headline c-danger">{{ debts().total | money }}</span></div>
+      <div class="mf-card commit">
+        <div class="row-between"><span class="t-subhead-sb">Renda comprometida com parcelas</span><span class="t-headline" [class]="'t-headline lvl ' + commitmentLevel()">{{ pct(commitment()) }}</span></div>
+        <mf-progress-bar [value]="commitment() / 100" [color]="commitmentLevel() === 'ok' ? 'var(--ion-color-primary)' : commitmentLevel() === 'warn' ? 'var(--ion-color-warning)' : 'var(--ion-color-danger)'"></mf-progress-bar>
+        <p class="t-footnote c-secondary">{{ monthlyDebt() | money }}/mês em parcelas. {{ commitmentLevel() === 'ok' ? 'Dentro do recomendado (até 30% da renda).' : commitmentLevel() === 'warn' ? 'Atenção: acima de 30% da renda.' : 'Alto: mais da metade da renda vai para parcelas.' }}</p>
+      </div>
+
+      @if (debts().cards.length) {
+        <p class="mf-label">Cartões de crédito</p>
+        <div class="mf-list">
+          @for (c of debts().cards; track c.id) {
+            <button class="mf-reset debt" type="button" (click)="openCard()">
+              <span class="di card"><ion-icon name="card-outline"></ion-icon></span>
+              <span class="grow left">
+                <span class="t-subhead-sb ellipsis">{{ c.name }}</span>
+                <span class="t-caption1 c-secondary">Fatura atual {{ c.current | money }} · parcelas futuras {{ c.future | money }}</span>
+              </span>
+              <span class="t-footnote-sb nowrap">{{ c.total | money }}</span>
+              <ion-icon class="chev" name="chevron-forward"></ion-icon>
+            </button>
+          }
+        </div>
+      }
+
+      <p class="mf-label">Empréstimos e financiamentos</p>
+      @if (debts().loans.length) {
+        <div class="mf-list">
+          @for (l of debts().loans; track l.id) {
+            <button class="mf-reset debt col" type="button" (click)="debtActions(l.debt)">
+              <span class="debt-top">
+                <span class="di"><ion-icon [name]="kindIcon(l.debt)"></ion-icon></span>
+                <span class="grow left">
+                  <span class="t-subhead-sb ellipsis">{{ l.name }}</span>
+                  <span class="t-caption1 c-secondary">{{ kindLabel(l.debt) }}{{ l.creditor ? ' · ' + l.creditor : '' }} · vence dia {{ l.debt.dueDay }}</span>
+                </span>
+                <span class="right">
+                  <span class="t-footnote-sb nowrap">{{ l.total | money }}</span>
+                  <span class="t-caption1 c-secondary nowrap">{{ l.debt.installmentAmount | money }}/mês</span>
+                </span>
+              </span>
+              <mf-progress-bar [value]="l.debt.paidInstallments / l.debt.totalInstallments" color="var(--ion-color-primary)" [height]="6"></mf-progress-bar>
+              <span class="t-caption1 c-secondary">
+                @if (l.total > 0) { {{ l.debt.paidInstallments }} de {{ l.debt.totalInstallments }} parcelas pagas · faltam {{ l.debt.totalInstallments - l.debt.paidInstallments }} } @else { Quitada 🎉 }
+              </span>
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="mf-card mf-empty"><p class="t-footnote">Cadastre empréstimos, financiamentos ou consignados para acompanhar o saldo devedor e lembrar dos vencimentos.</p></div>
+      }
+      <ion-button expand="block" class="tonal" (click)="addDebt()"><ion-icon slot="start" name="add"></ion-icon>Adicionar dívida</ion-button>
+    </div>
+  </div>
+</ion-content>

@@ -75,3 +75,34 @@ describe('StoreService', () => {
     expect(store.goal(g.id)!.completedAt).toBeTruthy();
   });
 });
+
+describe('StoreService · dívidas e importação', () => {
+  let store: StoreService;
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(StoreService);
+  });
+
+  it('pagar parcela lança despesa, avança o contador e desfazer devolve', () => {
+    const before = store.debt('d_carro')!.paidInstallments;
+    const bal = store.balanceOf('a_itau');
+    const tx = store.payDebtInstallment('d_carro')!;
+    expect(store.debt('d_carro')!.paidInstallments).toBe(before + 1);
+    expect(store.balanceOf('a_itau')).toBeCloseTo(bal - 890, 2);
+    store.deleteTransaction(tx.id);
+    expect(store.debt('d_carro')!.paidInstallments).toBe(before);
+  });
+
+  it('saldo devedor e patrimônio líquido', () => {
+    const d = store.debt('d_carro')!;
+    const loan = store.debtSummary().loans.find((l) => l.id === 'd_carro')!;
+    expect(loan.total).toBeCloseTo((d.totalInstallments - d.paidInstallments) * d.installmentAmount, 2);
+    expect(store.netWorth()).toBeCloseTo(store.totalBalance() - store.debtSummary().total, 2);
+  });
+
+  it('importação ignora lançamentos repetidos', () => {
+    const line = { type: 'expense' as const, description: 'Padaria', amount: 10, categoryId: 'c_alimentacao', accountId: 'a_nubank', date: new Date().toISOString(), paid: true, importId: 'nuconta:x1' };
+    expect(store.importTransactions([line])).toBe(1);
+    expect(store.importTransactions([line])).toBe(0);
+  });
+});

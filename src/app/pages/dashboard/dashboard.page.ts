@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonRefresher, IonRefresherContent, IonToolbar, ModalController } from '@ionic/angular/standalone';
-import { StoreService } from '../../core/services/store.service';
+import { Bill, StoreService, billRoute } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
-import { MONTHS, MONTHS_SHORT, addMonths, cap, greeting, initials, monthKey, parseMonthKey, pct } from '../../core/utils/format';
+import { MONTHS, MONTHS_SHORT, addMonths, cap, greeting, initials, monthKey, parseMonthKey, pct, round2 } from '../../core/utils/format';
 import { BalanceCardComponent } from '../../shared/components/balance-card.component';
 import { BarChartComponent, BarDatum } from '../../shared/components/bar-chart.component';
 import { DashboardSkeletonComponent } from '../../shared/components/dashboard-skeleton.component';
@@ -109,6 +109,8 @@ export class DashboardPage {
     return list.filter((t) => new Date(t.date).getTime() <= now).slice(0, 4);
   });
   readonly bills = computed(() => this.store.bills().slice(0, 3));
+  readonly toReceive = computed(() => round2(this.store.receivables().filter((t) => monthKey(new Date(t.date)) <= this.month()).reduce((s, t) => s + t.amount, 0)));
+  readonly toPay = computed(() => round2(this.store.bills().filter((b) => monthKey(b.due) <= this.month()).reduce((s, b) => s + b.amount, 0)));
   readonly goals = computed(() => this.store.goals());
   readonly notificationCount = computed(() => this.store.bills().filter((b) => b.status !== 'later').length);
 
@@ -133,8 +135,8 @@ export class DashboardPage {
     this.go(`/tabs/transacoes/${id}`);
   }
 
-  openBill(kind: 'tx' | 'card', refId: string): void {
-    this.go(kind === 'card' ? '/tabs/mais/cartoes' : `/tabs/transacoes/${refId}`);
+  openBill(b: Bill): void {
+    this.go(billRoute(b));
   }
 
   async notifications(): Promise<void> {

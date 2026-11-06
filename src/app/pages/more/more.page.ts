@@ -71,11 +71,13 @@ export class MorePage {
   readonly version = APP_VERSION;
 
   readonly finance: { label: string; icon: string; color: string; url: string; badge?: () => string }[] = [
+    { label: 'Ganhos e dívidas', icon: 'swap-vertical-outline', color: 'var(--mf-category-saude)', url: '/tabs/mais/financas' },
     { label: 'Minhas contas', icon: 'wallet-outline', color: 'var(--mf-category-educacao)', url: '/tabs/mais/contas' },
     { label: 'Categorias', icon: 'pricetag-outline', color: 'var(--mf-category-alimentacao)', url: '/tabs/mais/categorias' },
     { label: 'Cartões de crédito', icon: 'card-outline', color: 'var(--mf-category-moradia)', url: '/tabs/mais/cartoes' },
     { label: 'Metas financeiras', icon: 'flag-outline', color: 'var(--mf-category-salario)', url: '/tabs/mais/metas' },
     { label: 'Relatórios', icon: 'bar-chart-outline', color: 'var(--mf-category-transporte)', url: '/tabs/mais/relatorios' },
+    { label: 'Importar extrato do banco', icon: 'cloud-upload-outline', color: 'var(--mf-category-extra)', url: '/tabs/mais/importar' },
   ];
 
   go(url: string, fragment?: string): void {

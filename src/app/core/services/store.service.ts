@@ -1,16 +1,16 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import {
-  Account, AppData, Budget, Category, CreditCard, Goal, GoalContribution, Settings, Transaction, TxFilters, TxType,
+  Account, AppData, Budget, Category, CreditCard, Debt, Goal, GoalContribution, Settings, Transaction, TxFilters, TxType,
 } from '../models/models';
 import { addMonths, daysBetween, monthKey, round2, startOfDay, uid } from '../utils/format';
-import { DATA_VERSION, buildSeed } from './seed';
+import { DATA_VERSION, DEFAULT_CATEGORIES, buildSeed } from './seed';
 
 const STORAGE_KEY = 'mf:data';
 
 export interface Bill {
   id: string;
-  kind: 'tx' | 'card';
+  kind: 'tx' | 'card' | 'debt';
   name: string;
   amount: number;
   due: Date;
@@ -18,6 +18,13 @@ export interface Bill {
   days: number;
   status: 'overdue' | 'soon' | 'later';
   refId: string;
+}
+
+/** rota para abrir um vencimento */
+export function billRoute(b: Pick<Bill, 'kind' | 'refId'>): string {
+  if (b.kind === 'card') return '/tabs/mais/cartoes';
+  if (b.kind === 'debt') return '/tabs/mais/financas';
+  return `/tabs/transacoes/${b.refId}`;
 }
 
 export interface CategorySpend {
@@ -54,6 +61,7 @@ export class StoreService {
   readonly budgets = computed(() => this._data().budgets);
   readonly goals = computed(() => this._data().goals);
   readonly cards = computed(() => this._data().cards);
+  readonly debts = computed(() => this._data().debts ?? []);
   readonly hidden = computed(() => this.settings().hideValues);
 
   private readonly catMap = computed(() => new Map(this._data().categories.map((c) => [c.id, c])));
@@ -98,8 +106,40 @@ export class StoreService {
       const days = daysBetween(today, due);
       out.push({ id: `b_${c.id}`, kind: 'card', name: `Fatura ${c.name}`, amount, due, days, status: this.billStatus(days), refId: c.id });
     }
+    for (const d of this.debts()) {
+      if (d.paidInstallments >= d.totalInstallments) continue;
+      const due = this.debtNextDue(d);
+      const days = daysBetween(today, due);
+      out.push({ id: `b_${d.id}`, kind: 'debt', name: `${d.name} (${d.paidInstallments + 1}/${d.totalInstallments})`, amount: d.installmentAmount, due, days, status: this.billStatus(days), refId: d.id });
+    }
     return out.sort((a, b) => a.due.getTime() - b.due.getTime());
   });
+
+  // ---------------- Ganhos e dívidas ----------------
+  /** receitas pendentes (a receber) */
+  readonly receivables = computed(() =>
+    this.transactions()
+      .filter((t) => t.type === 'income' && !t.paid)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  );
+
+  /** saldo devedor de cada dívida (cartões + empréstimos) */
+  readonly debtSummary = computed(() => {
+    const cards = this.cards().map((c) => {
+      const open = this.cardOpenAmount(c.id);
+      const future = this.cardFutureAmount(c.id);
+      return { id: c.id, kind: 'card' as const, name: c.name, creditor: c.bank, current: open, total: round2(open + future), future };
+    });
+    const loans = this.debts().map((d) => {
+      const remaining = Math.max(0, d.totalInstallments - d.paidInstallments);
+      return { id: d.id, kind: 'debt' as const, name: d.name, creditor: d.creditor, current: remaining ? d.installmentAmount : 0, total: round2(remaining * d.installmentAmount), future: 0, debt: d };
+    });
+    const total = round2([...cards, ...loans].reduce((s, x) => s + x.total, 0));
+    return { cards, loans, total };
+  });
+
+  /** patrimônio líquido = saldo das contas + metas guardadas fora das contas − dívidas */
+  readonly netWorth = computed(() => round2(this.totalBalance() - this.debtSummary().total));
 
   constructor() {
     effect(() => {
@@ -114,12 +154,35 @@ export class StoreService {
       const { value } = await Preferences.get({ key: STORAGE_KEY });
       if (value) {
         const parsed = JSON.parse(value) as AppData;
-        if (parsed?.version === DATA_VERSION) this._data.set(parsed);
+        const migrated = this.migrate(parsed);
+        if (migrated) this._data.set(migrated);
       }
     } catch {
       /* dados corrompidos: mantém o seed */
     }
     this.ready.set(true);
+  }
+
+  /**
+   * Atualiza dados salvos por versões anteriores sem perder nada:
+   * acrescenta coleções/campos novos e categorias padrão que faltarem.
+   */
+  private migrate(d: AppData): AppData | null {
+    if (!d || !Array.isArray(d.transactions) || !d.settings) return null;
+    if (d.version > DATA_VERSION) return null;
+    const seed = buildSeed();
+    const ids = new Set((d.categories ?? []).map((c) => c.id));
+    return {
+      ...d,
+      version: DATA_VERSION,
+      settings: { ...seed.settings, ...d.settings },
+      accounts: d.accounts ?? [],
+      categories: [...(d.categories ?? []), ...DEFAULT_CATEGORIES.filter((c) => !ids.has(c.id))],
+      budgets: d.budgets ?? [],
+      goals: d.goals ?? [],
+      cards: (d.cards ?? []).map((c) => ({ ...c, bank: c.bank ?? c.name, tier: c.tier ?? '' })),
+      debts: d.debts ?? [],
+    };
   }
 
   /** compras no cartão saem da conta que paga a fatura */
@@ -356,6 +419,24 @@ export class StoreService {
     return d;
   }
 
+  /** vencimento da próxima parcela da dívida */
+  debtNextDue(d: Debt, from = new Date()): Date {
+    const today = startOfDay(from);
+    const key = monthKey(today);
+    const paidThisMonth = this._data().transactions.some((t) => t.debtId === d.id && monthKey(new Date(t.date)) === key);
+    const last = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+    if (paidThisMonth) {
+      const y = today.getFullYear();
+      const m = today.getMonth() + 1;
+      return new Date(y, m, Math.min(d.dueDay, last(y, m)));
+    }
+    return new Date(today.getFullYear(), today.getMonth(), Math.min(d.dueDay, last(today.getFullYear(), today.getMonth())));
+  }
+
+  debt(id: string | undefined): Debt | undefined {
+    return id ? this.debts().find((d) => d.id === id) : undefined;
+  }
+
   private billStatus(days: number): Bill['status'] {
     if (days < 0) return 'overdue';
     if (days <= 3) return 'soon';
@@ -405,11 +486,25 @@ export class StoreService {
 
   deleteTransaction(id: string): Transaction | undefined {
     const t = this.transaction(id);
-    this.patch((d) => ({ ...d, transactions: d.transactions.filter((x) => x.id !== id) }));
+    this.patch((d) => ({
+      ...d,
+      transactions: d.transactions.filter((x) => x.id !== id),
+      // excluir o pagamento de uma parcela devolve a parcela à dívida
+      debts: t?.debtId ? (d.debts ?? []).map((x) => (x.id === t.debtId ? { ...x, paidInstallments: Math.max(0, x.paidInstallments - 1) } : x)) : d.debts,
+    }));
     return t;
   }
 
+  restoreTransactionWithDebt(t: Transaction): void {
+    this.patch((d) => ({
+      ...d,
+      transactions: [t, ...d.transactions],
+      debts: t.debtId ? (d.debts ?? []).map((x) => (x.id === t.debtId ? { ...x, paidInstallments: Math.min(x.totalInstallments, x.paidInstallments + 1) } : x)) : d.debts,
+    }));
+  }
+
   restoreTransaction(t: Transaction): void {
+    if (t.debtId) return this.restoreTransactionWithDebt(t);
     this.patch((d) => ({ ...d, transactions: [t, ...d.transactions] }));
   }
 
@@ -520,6 +615,54 @@ export class StoreService {
     }));
   }
 
+  addDebt(d: Omit<Debt, 'id' | 'createdAt'>): Debt {
+    const debt: Debt = { ...d, installmentAmount: round2(d.installmentAmount), id: uid('d'), createdAt: new Date().toISOString() };
+    this.patch((x) => ({ ...x, debts: [...(x.debts ?? []), debt] }));
+    return debt;
+  }
+
+  updateDebt(id: string, p: Partial<Debt>): void {
+    this.patch((x) => ({ ...x, debts: (x.debts ?? []).map((d) => (d.id === id ? { ...d, ...p, id } : d)) }));
+  }
+
+  deleteDebt(id: string): void {
+    this.patch((x) => ({ ...x, debts: (x.debts ?? []).filter((d) => d.id !== id) }));
+  }
+
+  /** paga a próxima parcela: lança a despesa na conta e avança o contador */
+  payDebtInstallment(id: string, amount?: number, date = new Date().toISOString()): Transaction | undefined {
+    const d = this.debt(id);
+    if (!d || d.paidInstallments >= d.totalInstallments) return undefined;
+    const n = d.paidInstallments + 1;
+    const tx = this.addTransaction({
+      type: 'expense',
+      description: `${d.name} — parcela ${n}/${d.totalInstallments}`,
+      amount: amount ?? d.installmentAmount,
+      categoryId: this.category('c_dividas') ? 'c_dividas' : (this.categoriesOf('expense')[0]?.id ?? 'c_outros_d'),
+      accountId: d.accountId,
+      date,
+      paid: true,
+      debtId: d.id,
+    });
+    this.updateDebt(id, { paidInstallments: n });
+    return tx;
+  }
+
+  /** importa lançamentos de extrato, ignorando os que já existem (importId) */
+  importTransactions(list: Omit<Transaction, 'id' | 'createdAt'>[]): number {
+    const existing = new Set(this._data().transactions.map((t) => t.importId).filter(Boolean));
+    const now = new Date().toISOString();
+    const fresh = list
+      .filter((t) => !t.importId || !existing.has(t.importId))
+      .map((t) => ({ ...t, amount: round2(t.amount), id: uid('t'), createdAt: now }) as Transaction);
+    if (fresh.length) this.patch((d) => ({ ...d, transactions: [...fresh, ...d.transactions] }));
+    return fresh.length;
+  }
+
+  hasImportId(id: string): boolean {
+    return this._data().transactions.some((t) => t.importId === id);
+  }
+
   addCard(c: Omit<CreditCard, 'id'>): CreditCard {
     const card: CreditCard = { ...c, id: uid('k') };
     this.patch((d) => ({ ...d, cards: [...d.cards, card] }));
@@ -556,6 +699,7 @@ export class StoreService {
       budgets: [],
       goals: [],
       cards: [],
+      debts: [],
       categories: seed.categories.filter((c) => !c.custom),
     });
   }
@@ -582,9 +726,9 @@ export class StoreService {
 
   importJson(json: string): boolean {
     try {
-      const d = JSON.parse(json) as AppData;
-      if (!d || !Array.isArray(d.transactions) || !d.settings) return false;
-      this._data.set({ ...d, version: DATA_VERSION });
+      const d = this.migrate(JSON.parse(json) as AppData);
+      if (!d) return false;
+      this._data.set(d);
       return true;
     } catch {
       return false;

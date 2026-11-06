@@ -1,0 +1,110 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais" text="Mais"></ion-back-button></ion-buttons>
+    <ion-title>Importar extrato</ion-title>
+    @if (parsed()) { <ion-buttons slot="end"><ion-button class="plain" (click)="reset()">Trocar</ion-button></ion-buttons> }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="mf-page">
+  <input #file type="file" accept=".ofx,.qfx,.csv,.txt,text/csv,application/x-ofx" hidden (change)="onFile($event)" />
+
+  @if (!parsed()) {
+    <div class="body">
+      <div class="pad">
+        <div class="hero">
+          <span class="hi"><ion-icon name="cloud-upload-outline"></ion-icon></span>
+          <h1 class="t-title2">Traga seus lançamentos do banco</h1>
+          <p class="t-subhead c-secondary">Exporte o extrato no app ou site do seu banco e escolha o arquivo aqui. Tudo é lido no seu iPhone — nada é enviado para fora.</p>
+          <ion-button expand="block" (click)="pick()" [disabled]="busy()">
+            @if (busy()) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon slot="start" name="document-outline"></ion-icon>Escolher arquivo (OFX ou CSV) }
+          </ion-button>
+          @if (error()) { <p class="err t-footnote">{{ error() }}</p> }
+        </div>
+      </div>
+
+      <div class="pad">
+        <p class="mf-label">Onde encontrar o extrato</p>
+        <div class="mf-group elevated no-lead howto">
+          <div class="mf-row"><span class="label grow">Nubank<span class="sub">Conta e cartão: exporte o extrato/fatura em CSV ou OFX pelo app (ele chega por e-mail).</span></span></div>
+          <div class="mf-row"><span class="label grow">Itaú<span class="sub">Extrato › exportar/salvar em OFX (Money).</span></span></div>
+          <div class="mf-row"><span class="label grow">Santander<span class="sub">Extrato › exportar em OFX pelo internet banking.</span></span></div>
+          <div class="mf-row"><span class="label grow">XP<span class="sub">Conta digital › extrato › exportar em OFX ou CSV.</span></span></div>
+        </div>
+        <p class="note t-footnote c-secondary">Os nomes dos menus podem variar conforme a versão do app de cada banco. Procure por “Extrato” e uma opção de exportar, baixar ou compartilhar em OFX ou CSV.</p>
+      </div>
+
+      <div class="pad">
+        <p class="mf-label">Como funciona</p>
+        <div class="mf-card how t-footnote c-secondary">
+          <p><ion-icon name="sparkles-outline"></ion-icon>Categoriza automaticamente e aprende com as categorias que você já usa.</p>
+          <p><ion-icon name="checkmark-done-outline"></ion-icon>Lançamentos já importados são ignorados — pode importar o mesmo extrato de novo sem duplicar.</p>
+          <p><ion-icon name="swap-vertical-outline"></ion-icon>Pagamentos de fatura, aplicações e resgates vêm desmarcados para não contar em dobro.</p>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="body">
+      <div class="pad">
+        <div class="mf-card summary">
+          <div class="file"><ion-icon name="document-text-outline"></ion-icon><span class="t-subhead-sb ellipsis">{{ fileName() }}</span></div>
+          <p class="t-footnote c-secondary">{{ parsed()!.bankName ?? 'Banco não identificado' }}{{ parsed()!.isCard ? ' · cartão de crédito' : '' }} · {{ rows().length }} lançamentos · {{ period() }}</p>
+          <div class="kv">
+            <div><span class="t-caption1 c-secondary">Entradas</span><span class="t-footnote-sb c-success">{{ plain(totals().inc) }}</span></div>
+            <div><span class="t-caption1 c-secondary">Saídas</span><span class="t-footnote-sb c-danger">{{ plain(totals().exp) }}</span></div>
+            <div><span class="t-caption1 c-secondary">Selecionados</span><span class="t-footnote-sb">{{ selected().length }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pad">
+        <div class="mf-group elevated">
+          <button class="mf-row" type="button" (click)="pickTarget()">
+            <span class="lead" style="--lead: var(--ion-color-primary)"><ion-icon [name]="isCardTarget() ? 'card-outline' : 'wallet-outline'"></ion-icon></span>
+            <span class="label">Lançar em</span>
+            <span class="value" [class.c-danger]="!target()">{{ targetLabel() }}</span>
+            <ion-icon class="chev" name="chevron-forward"></ion-icon>
+          </button>
+        </div>
+        @if (dupCount()) { <p class="note t-footnote c-secondary">{{ dupCount() }} {{ dupCount() === 1 ? 'lançamento já está' : 'lançamentos já estão' }} no app e {{ dupCount() === 1 ? 'será ignorado' : 'serão ignorados' }}.</p> }
+      </div>
+
+      <div class="pad">
+        <div class="list-head">
+          <p class="mf-label">Lançamentos</p>
+          <span class="links t-footnote-sb">
+            <button class="mf-reset c-primary-shade" type="button" (click)="toggleAll(true)">Marcar</button>
+            <button class="mf-reset c-primary-shade" type="button" (click)="toggleAll(false)">Desmarcar</button>
+          </span>
+        </div>
+        <div class="mf-list">
+          @for (r of rows(); track r.importId) {
+            <div class="line" [class.off]="!r.selected || r.duplicate" (click)="toggle(r)">
+              <span class="check" [class.on]="r.selected && !r.duplicate"><ion-icon name="checkmark"></ion-icon></span>
+              <button class="mf-reset ci" type="button" (click)="pickCategory(r, $event)" [attr.aria-label]="'Categoria: ' + (cat(r.categoryId)?.name ?? 'sem categoria')">
+                <mf-category-icon [icon]="cat(r.categoryId)?.icon ?? 'help-circle-outline'" [color]="cat(r.categoryId)?.color ?? 'outros'" [size]="36"></mf-category-icon>
+              </button>
+              <span class="text">
+                <span class="t-subhead-sb ellipsis">{{ r.description }}</span>
+                <span class="t-caption1 c-secondary ellipsis">
+                  {{ date(r.date) }} · {{ cat(r.categoryId)?.name ?? 'Sem categoria' }}
+                  @if (r.duplicate) { · <b class="c-tertiary">já importado</b> }
+                  @else if (r.transfer) { · <b class="c-warning">possível transferência</b> }
+                </span>
+              </span>
+              <span class="t-footnote-sb nowrap" [class.c-success]="r.amount > 0" [class.c-danger]="r.amount < 0">{{ fmt(r.amount) }}</span>
+            </div>
+          }
+        </div>
+        <p class="note t-footnote c-secondary">Toque no ícone para trocar a categoria (vale para lançamentos parecidos). Toque na linha para marcar ou desmarcar.</p>
+      </div>
+
+      <div class="pad">
+        <ion-button expand="block" (click)="import()" [disabled]="!selected().length">
+          Importar {{ selected().length }} {{ selected().length === 1 ? 'lançamento' : 'lançamentos' }}
+        </ion-button>
+        <p class="note t-footnote c-secondary center">Depois de importar, confira o saldo da conta em Mais › Minhas contas.</p>
+      </div>
+    </div>
+  }
+</ion-content>

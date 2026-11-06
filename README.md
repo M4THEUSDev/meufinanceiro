@@ -42,6 +42,8 @@ No primeiro acesso: Splash → Onboarding → Login. O primeiro login no aparelh
 | 5 · Planejamento | Orçamentos do mês (anel de uso, ritmo diário, alertas ≥ 80% e > 100%), copiar do mês anterior, Definir orçamento (sugestão pela média de 3 meses, alerta, recorrência), Acompanhar gastos |
 | 6 · Metas | Lista com total acumulado, Nova meta (ícone, valor, valor inicial, data, conta), Adicionar contribuição (atalhos +100/+250/+500, conta de débito), Acompanhar progresso, metas concluídas |
 | Outras | Categorias (despesas/receitas, personalizadas), Cartões (carrossel, limite, fatura, pagar fatura, parcelamentos), Relatórios (mês/trimestre/ano, evolução 12 meses, resultado líquido, rosca interativa, top 5, comparação, indicadores, exportar PDF/CSV), Configurações (foto, nome, e-mail, tema Claro/Escuro/Sistema, notificações, Face ID, bloqueio do app, senha, exportar/backup/restaurar, excluir dados, sair) |
+| Ganhos e dívidas | Patrimônio líquido, ganhos do mês por fonte (recebido x a receber, comparação com a média), contas a pagar no mês (vencidas, faturas, parcelas), dívidas (cartões + empréstimos/financiamentos), renda comprometida com parcelas, pagar parcela |
+| Importar extrato | OFX (Itaú, Santander, XP, Nubank e outros) e CSV do Nubank (conta e cartão): banco detectado pelo arquivo, categorização automática que aprende com o histórico, sem duplicar ao reimportar, transferências desmarcadas |
 | Estados | Listas vazias, pull-to-refresh, banner offline, erros de validação, tela de bloqueio, toasts + háptico |
 
 Os dados ficam no aparelho (Capacitor Preferences) — o app é offline-first. Um conjunto de dados de exemplo
