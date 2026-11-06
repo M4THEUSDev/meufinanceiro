@@ -145,3 +145,14 @@ describe('StoreService · recorrências, fechamento do cartão e acordos', () =>
     expect(store.debt(d.id)!.nextDueMonth).toBe(next);
   });
 });
+
+describe('StoreService · saldo devedor informado', () => {
+  it('usa o saldo informado pelo credor no lugar de parcelas × valor', () => {
+    TestBed.configureTestingModule({});
+    const store = TestBed.inject(StoreService);
+    const d = store.addDebt({ name: 'Empréstimo', creditor: 'Banco', kind: 'emprestimo', installmentAmount: 577, totalInstallments: 10, paidInstallments: 0, dueDay: 10, accountId: 'a_nubank', payoffAmount: 3042.74 });
+    const l = store.debtSummary().loans.find((x) => x.id === d.id)!;
+    expect(l.total).toBe(3042.74);
+    expect(l.byInstallments).toBe(5770);
+  });
+});

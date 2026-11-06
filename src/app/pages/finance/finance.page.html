@@ -154,6 +154,7 @@
               <mf-progress-bar [value]="l.debt.paidInstallments / l.debt.totalInstallments" color="var(--ion-color-primary)" [height]="6"></mf-progress-bar>
               <span class="t-caption1 c-secondary">
                 @if (l.total > 0) { {{ l.debt.paidInstallments }} de {{ l.debt.totalInstallments }} parcelas pagas · faltam {{ l.debt.totalInstallments - l.debt.paidInstallments }} } @else { Quitada 🎉 }
+                @if (l.informed) { · saldo informado em {{ date(l.debt.payoffDate ?? '') }} }
               </span>
             </button>
           }

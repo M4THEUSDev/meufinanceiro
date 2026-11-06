@@ -178,6 +178,10 @@ export interface Debt {
   accountId: string;
   /** YYYY-MM da próxima parcela a vencer (avança a cada pagamento) */
   nextDueMonth?: string;
+  /** saldo devedor informado pelo credor (substitui parcelas × valor) */
+  payoffAmount?: number;
+  /** ISO da data em que o saldo devedor foi informado */
+  payoffDate?: string;
   /** juros ao mês (%), informativo */
   monthlyRate?: number;
   createdAt: string;

@@ -157,9 +157,10 @@ export class FinancePage {
     if (!chosen) return;
     const tx = this.store.payDebtInstallment(id, undefined, undefined, cardId);
     const left = d.totalInstallments - d.paidInstallments - 1;
+    const reminder = d.payoffAmount != null && left ? ' · atualize o saldo devedor quando o banco informar' : '';
     await this.ui.toast({
       title: left ? 'Parcela paga' : 'Dívida quitada! 🎉',
-      message: left ? `${d.name} · faltam ${left} ${left === 1 ? 'parcela' : 'parcelas'}` : `${d.name} foi totalmente paga.`,
+      message: left ? `${d.name} · faltam ${left} ${left === 1 ? 'parcela' : 'parcelas'}${reminder}` : `${d.name} foi totalmente paga.`,
       action: tx ? { text: 'Desfazer', handler: () => this.store.deleteTransaction(tx.id) } : undefined,
     });
   }

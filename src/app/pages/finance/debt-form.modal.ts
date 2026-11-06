@@ -4,7 +4,7 @@ import { IonButton, IonContent, IonHeader, IonIcon, ModalController } from '@ion
 import { DebtKind } from '../../core/models/models';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
-import { HIDDEN_MASK, addMonths, money, monthKey, monthLabel, round2 } from '../../core/utils/format';
+import { HIDDEN_MASK, addMonths, money, monthKey, monthLabel, parseMoney, round2 } from '../../core/utils/format';
 import { CurrencyInputComponent } from '../../shared/components/currency-input.component';
 import { openPicker } from '../../shared/components/picker.modal';
 
@@ -52,16 +52,17 @@ export const DEBT_KINDS: { id: DebtKind; label: string; icon: string }[] = [
             <label class="mf-row no-lead"><span class="label">Total de parcelas</span><input class="value" type="number" inputmode="numeric" min="1" max="600" [ngModel]="total()" (ngModelChange)="total.set(+$event || 0)" /></label>
             <label class="mf-row no-lead"><span class="label">Parcelas já pagas</span><input class="value" type="number" inputmode="numeric" min="0" [ngModel]="paid()" (ngModelChange)="paid.set(+$event || 0)" /></label>
             <label class="mf-row no-lead"><span class="label">Dia do vencimento</span><input class="value" type="number" inputmode="numeric" min="1" max="31" [ngModel]="dueDay()" (ngModelChange)="dueDay.set(+$event || 0)" /></label>
+            <label class="mf-row no-lead"><span class="label grow">Saldo devedor<span class="sub">Valor para quitar, informado pelo banco (opcional)</span></span><input class="value pay" type="text" inputmode="decimal" placeholder="Calcular pelas parcelas" [ngModel]="payoff()" (ngModelChange)="payoff.set($event)" /></label>
             <label class="mf-row no-lead"><span class="label">Juros ao mês (%)</span><input class="value" type="text" inputmode="decimal" placeholder="Opcional" [ngModel]="rate()" (ngModelChange)="rate.set($event)" /></label>
             <button class="mf-row no-lead" type="button" (click)="pickNext()"><span class="label">Próxima parcela vence em</span><span class="value">{{ nextLabel() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon></button>
             <button class="mf-row no-lead" type="button" (click)="pickAccount()"><span class="label">Pagar com</span><span class="value">{{ accountName() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon></button>
           </div>
           @if (submitted() && error()) { <p class="err">{{ error() }}</p> }
         </div>
-        @if (installment() > 0 && total() > 0) {
+        @if (installment() > 0 && total() > 0 && !payoffValue()) {
           <div class="pad">
             <div class="mf-card resume">
-              <div><span class="t-caption1 c-secondary">Saldo devedor</span><span class="t-headline c-danger">{{ fmt(remaining()) }}</span></div>
+              <div><span class="t-caption1 c-secondary">Saldo pelas parcelas</span><span class="t-headline c-danger">{{ fmt(remaining()) }}</span></div>
               <div><span class="t-caption1 c-secondary">Faltam</span><span class="t-headline">{{ left() }} {{ left() === 1 ? 'parcela' : 'parcelas' }}</span></div>
             </div>
           </div>
@@ -80,6 +81,7 @@ export const DEBT_KINDS: { id: DebtKind; label: string; icon: string }[] = [
     .chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ion-border-color); background: var(--ion-card-background); font: inherit; font-size: 15px; font-weight: 600; color: var(--ion-text-color); cursor: pointer; }
     .chip.on { background: var(--ion-text-color); color: var(--ion-card-background); border-color: var(--ion-text-color); }
     .mf-row.invalid .label { color: var(--ion-color-danger); }
+    .pay { max-width: 150px; }
     .resume { display: flex; gap: 12px; > div { flex: 1; display: flex; flex-direction: column; } }
     .err { color: var(--ion-color-danger); font-size: 13px; margin: 0; }
   `,
@@ -99,6 +101,7 @@ export class DebtFormModal implements OnInit {
   readonly paid = signal(0);
   readonly dueDay = signal(10);
   readonly rate = signal('');
+  readonly payoff = signal('');
   readonly accountId = signal('');
   readonly nextDue = signal(monthKey(new Date()));
   readonly nextLabel = computed(() => `${String(Math.min(this.dueDay() || 1, 31)).padStart(2, '0')} de ${monthLabel(this.nextDue()).toLowerCase()}`);
@@ -125,9 +128,16 @@ export class DebtFormModal implements OnInit {
       this.total.set(d.totalInstallments); this.paid.set(d.paidInstallments); this.dueDay.set(d.dueDay);
       this.rate.set(d.monthlyRate ? String(d.monthlyRate).replace('.', ',') : ''); this.accountId.set(d.accountId);
       this.nextDue.set(d.nextDueMonth ?? monthKey(this.store.debtNextDue(d)));
+      this.payoff.set(d.payoffAmount != null ? d.payoffAmount.toFixed(2).replace('.', ',') : '');
     } else {
       this.accountId.set(this.store.activeAccounts().find((a) => a.kind === 'corrente' || a.kind === 'digital')?.id ?? this.store.activeAccounts()[0]?.id ?? '');
     }
+  }
+
+  /** valor digitado no saldo devedor (0 = não informado) */
+  payoffValue(): number {
+    const v = parseMoney(this.payoff());
+    return v > 0 ? v : 0;
   }
 
   fmt(v: number): string {
@@ -157,6 +167,8 @@ export class DebtFormModal implements OnInit {
     const data = {
       kind: this.kind(), name: this.name().trim(), creditor: this.creditor().trim(), installmentAmount: this.installment(),
       totalInstallments: Math.round(this.total()), paidInstallments: Math.round(this.paid()), dueDay: Math.round(this.dueDay()),
+      payoffAmount: this.payoffValue() || undefined,
+      payoffDate: this.payoffValue() ? (this.store.debt(this.debtId)?.payoffAmount === this.payoffValue() ? this.store.debt(this.debtId)?.payoffDate : new Date().toISOString()) : undefined,
       accountId: this.accountId(), nextDueMonth: this.paid() < this.total() ? this.nextDue() : undefined, monthlyRate: Number.isFinite(rate) && rate > 0 ? rate : undefined,
     };
     if (this.debtId) {

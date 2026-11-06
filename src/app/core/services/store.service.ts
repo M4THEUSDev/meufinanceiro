@@ -129,11 +129,17 @@ export class StoreService {
     const cards = this.cards().map((c) => {
       const open = this.cardOpenAmount(c.id);
       const future = this.cardFutureAmount(c.id);
-      return { id: c.id, kind: 'card' as const, name: c.name, creditor: c.bank, current: open, total: round2(open + future), future };
+      return { id: c.id, kind: 'card' as const, name: c.name, creditor: c.bank, current: open, total: round2(open + future), future, byInstallments: round2(open + future), informed: false };
     });
     const loans = this.debts().map((d) => {
       const remaining = Math.max(0, d.totalInstallments - d.paidInstallments);
-      return { id: d.id, kind: 'debt' as const, name: d.name, creditor: d.creditor, current: remaining ? d.installmentAmount : 0, total: round2(remaining * d.installmentAmount), future: 0, debt: d };
+      const byInstallments = round2(remaining * d.installmentAmount);
+      // saldo informado pelo credor vale enquanto houver parcelas a pagar
+      const informed = remaining && d.payoffAmount != null ? round2(d.payoffAmount) : null;
+      return {
+        id: d.id, kind: 'debt' as const, name: d.name, creditor: d.creditor, current: remaining ? d.installmentAmount : 0,
+        total: informed ?? byInstallments, byInstallments, informed: informed != null, future: 0, debt: d,
+      };
     });
     const total = round2([...cards, ...loans].reduce((s, x) => s + x.total, 0));
     return { cards, loans, total };
