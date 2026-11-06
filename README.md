@@ -16,8 +16,20 @@ npm run test:ci      # testes unitários (Karma + Chrome headless)
 npm run ios          # build + cap sync + abre o projeto no Xcode (requer macOS)
 ```
 
+## Publicar na Vercel (usar no iPhone pela Tela de Início)
+
+O projeto já vem com `vercel.json` (build `npm run build`, saída `www`, rotas SPA) e é um PWA
+(manifesto + service worker): instala na Tela de Início com o nome **Finanças**, abre em tela cheia e funciona offline.
+
+1. Em vercel.com › **Add New › Project**, importe este repositório (as configurações são lidas do `vercel.json`).
+2. Após o deploy, abra a URL no **Safari** do iPhone › **Compartilhar** › **Adicionar à Tela de Início**.
+3. Novas versões publicadas aparecem com o aviso “Nova versão disponível” dentro do app.
+
+Na versão web os dados ficam no armazenamento do Safari daquele aparelho — use **Configurações › Fazer backup (JSON)**
+de vez em quando. Face ID e notificações locais existem apenas no app nativo (`ios/`).
+
 No primeiro acesso: Splash → Onboarding → Login. O primeiro login no aparelho define a senha local
-(mín. 6 caracteres); o Face ID pode ser ativado depois em **Configurações › Segurança**.
+(mín. 6 caracteres); no app nativo, o Face ID (biometria real do iPhone) pode ser ativado depois em **Configurações › Segurança**.
 
 ## O que está implementado
 
@@ -30,6 +42,8 @@ No primeiro acesso: Splash → Onboarding → Login. O primeiro login no aparelh
 | 5 · Planejamento | Orçamentos do mês (anel de uso, ritmo diário, alertas ≥ 80% e > 100%), copiar do mês anterior, Definir orçamento (sugestão pela média de 3 meses, alerta, recorrência), Acompanhar gastos |
 | 6 · Metas | Lista com total acumulado, Nova meta (ícone, valor, valor inicial, data, conta), Adicionar contribuição (atalhos +100/+250/+500, conta de débito), Acompanhar progresso, metas concluídas |
 | Outras | Categorias (despesas/receitas, personalizadas), Cartões (carrossel, limite, fatura, pagar fatura, parcelamentos), Relatórios (mês/trimestre/ano, evolução 12 meses, resultado líquido, rosca interativa, top 5, comparação, indicadores, exportar PDF/CSV), Configurações (foto, nome, e-mail, tema Claro/Escuro/Sistema, notificações, Face ID, bloqueio do app, senha, exportar/backup/restaurar, excluir dados, sair) |
+| Ganhos e dívidas | Patrimônio líquido, ganhos do mês por fonte (recebido x a receber, comparação com a média), contas a pagar no mês (vencidas, faturas, parcelas), dívidas (cartões + empréstimos/financiamentos), renda comprometida com parcelas, pagar parcela |
+| Importar extrato | OFX (Itaú, Santander, XP, Nubank e outros) e CSV do Nubank (conta e cartão): banco detectado pelo arquivo, categorização automática que aprende com o histórico, sem duplicar ao reimportar, transferências desmarcadas |
 | Estados | Listas vazias, pull-to-refresh, banner offline, erros de validação, tela de bloqueio, toasts + háptico |
 
 Os dados ficam no aparelho (Capacitor Preferences) — o app é offline-first. Um conjunto de dados de exemplo

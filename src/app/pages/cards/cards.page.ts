@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ModalController } from '@ionic/angular/standalone';
+import { AlertController, IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ModalController } from '@ionic/angular/standalone';
 import { StoreService, defaultFilters } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
-import { MONTHS, startOfDay } from '../../core/utils/format';
+import { MONTHS, parseMoney, startOfDay } from '../../core/utils/format';
 import { CategoryIconComponent } from '../../shared/components/category-icon.component';
 import { SectionHeaderComponent } from '../../shared/components/section-header.component';
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
@@ -25,6 +25,7 @@ export class CardsPage {
   private readonly modal = inject(ModalController);
   private readonly ui = inject(UiService);
   private readonly router = inject(Router);
+  private readonly alert = inject(AlertController);
   private readonly track = viewChild<ElementRef<HTMLDivElement>>('track');
 
   readonly index = signal(0);
@@ -95,6 +96,25 @@ export class CardsPage {
     await m.present();
     const { role } = await m.onWillDismiss();
     if (role === 'delete') this.index.set(0);
+  }
+
+  /** para quem não lança compra por compra: informa só o total da fatura */
+  async informInvoice(): Promise<void> {
+    const c = this.card();
+    if (!c) return;
+    const a = await this.alert.create({
+      header: `Fatura ${c.name}`,
+      message: `Valor total da fatura que vence em ${this.dm(this.due())}. Compras já lançadas neste cartão são consideradas.`,
+      inputs: [{ name: 'v', type: 'text', placeholder: '0,00', value: this.open() ? this.open().toFixed(2).replace('.', ',') : '', attributes: { inputmode: 'decimal' } }],
+      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Salvar', role: 'confirm' }],
+    });
+    await a.present();
+    const { role, data } = await a.onDidDismiss();
+    if (role !== 'confirm') return;
+    const v = parseMoney(data?.values?.v ?? '');
+    if (!(v > 0)) return;
+    this.store.setInvoiceAmount(c.id, v);
+    await this.ui.toast({ title: 'Fatura atualizada', message: `${c.name} · ${this.store.hidden() ? 'R$ •••••' : 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` });
   }
 
   async invoice(): Promise<void> {

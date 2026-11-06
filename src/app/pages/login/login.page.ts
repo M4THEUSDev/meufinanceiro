@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { IonButton, IonContent, IonIcon, IonSpinner, NavController } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/services/auth.service';
+import { BiometricService } from '../../core/services/biometric.service';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
 import { LogoMarkComponent } from '../../shared/components/logo-mark.component';
@@ -27,6 +28,8 @@ export class LoginPage {
   readonly error = signal<{ field: 'email' | 'password'; message: string } | null>(null);
   readonly loading = signal(false);
   readonly faceLoading = signal(false);
+
+  readonly native = inject(BiometricService).native;
 
   get faceIdAvailable(): boolean {
     return this.auth.faceIdAvailable;

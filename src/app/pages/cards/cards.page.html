@@ -23,12 +23,16 @@
       <div class="pad">
         <div class="mf-card limit">
           <div class="lrow">
-            <div><span class="t-footnote-sb c-secondary">Limite disponível</span><span class="t-amount-medium" [class.c-success]="available() >= 0" [class.c-danger]="available() < 0">{{ available() | money }}</span></div>
-            <div class="r"><span class="t-footnote c-tertiary">Limite total</span><span class="t-footnote-sb">{{ c.limit | money }}</span></div>
+            @if (c.limit > 0) {
+              <div><span class="t-footnote-sb c-secondary">Limite disponível</span><span class="t-amount-medium" [class.c-success]="available() >= 0" [class.c-danger]="available() < 0">{{ available() | money }}</span></div>
+            } @else {
+              <div><span class="t-footnote-sb c-secondary">Total comprometido</span><span class="t-amount-medium c-danger">{{ open() + future() | money }}</span></div>
+            }
+            <div class="r"><span class="t-footnote c-tertiary">Limite total</span>@if (c.limit > 0) {<span class="t-footnote-sb">{{ c.limit | money }}</span>} @else {<button class="mf-reset t-footnote-sb c-primary-shade" type="button" (click)="edit()">Informar</button>}</div>
           </div>
           <div class="bar"><i class="open" [style.width.%]="openPct()"></i><i class="fut" [style.width.%]="futurePct()"></i></div>
           <p class="t-caption1 c-secondary lg"><i class="d open"></i>Fatura atual {{ open() | money }}</p>
-          <p class="t-caption1 c-secondary lg"><i class="d fut"></i>Parcelas futuras {{ future() | money }}</p>
+          <p class="t-caption1 c-secondary lg"><i class="d fut"></i>Próximas faturas {{ future() | money }}</p>
         </div>
       </div>
 
@@ -41,6 +45,7 @@
             <div class="dt"><ion-icon name="calendar-outline"></ion-icon><div><span class="t-footnote c-secondary">Vencimento</span><span class="t-headline">{{ dm(due()) }}</span></div></div>
           </div>
           <ion-button expand="block" class="tonal" (click)="invoice()">Ver fatura detalhada</ion-button>
+          <ion-button expand="block" fill="clear" class="mf-small" (click)="informInvoice()">Informar valor total da fatura</ion-button>
         </div>
       </div>
 

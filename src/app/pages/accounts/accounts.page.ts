@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ModalController } from '@ionic/angular/standalone';
 import { Account } from '../../core/models/models';
 import { StoreService } from '../../core/services/store.service';
@@ -39,6 +40,13 @@ import { AccountFormModal } from './account-form.modal';
         } @empty {
           <div class="pad"><div class="mf-card mf-empty"><ion-icon name="wallet-outline"></ion-icon><p class="t-headline">Nenhuma conta</p><p class="t-footnote">Adicione sua primeira conta para começar.</p></div></div>
         }
+        <div class="pad">
+          <button class="mf-reset import" type="button" (click)="importStatement()">
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            <span class="grow"><span class="t-subhead-sb">Importar extrato do banco</span><span class="t-caption1 c-secondary">Nubank, Itaú, Santander, XP e outros (OFX ou CSV)</span></span>
+            <ion-icon class="chev" name="chevron-forward"></ion-icon>
+          </button>
+        </div>
       </div>
     </ion-content>
   `,
@@ -47,11 +55,16 @@ import { AccountFormModal } from './account-form.modal';
     .pad { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
     .total { display: flex; flex-direction: column; gap: 4px; padding: 20px; border-radius: var(--mf-radius-xl); background: var(--mf-brand-deep); color: #fff; box-shadow: var(--mf-elevation-brand); }
     .sub { opacity: 0.75; }
+    .import { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--mf-radius-lg); background: var(--ion-card-background); box-shadow: var(--mf-elevation-sm); text-align: left; }
+    .import > ion-icon:first-child { font-size: 22px; color: var(--ion-color-primary-shade); }
+    .import .grow { flex: 1; display: flex; flex-direction: column; }
+    .chev { color: var(--mf-text-tertiary); font-size: 16px; }
   `,
 })
 export class AccountsPage {
   protected readonly store = inject(StoreService);
   private readonly modal = inject(ModalController);
+  private readonly router = inject(Router);
 
   readonly summary = computed(() => {
     const act = this.store.accounts().filter((a) => a.active).length;
@@ -75,6 +88,10 @@ export class AccountsPage {
       { name: 'Desativadas', items: off },
     ].filter((g) => g.items.length);
   });
+
+  importStatement(): void {
+    void this.router.navigateByUrl('/tabs/mais/importar');
+  }
 
   async add(): Promise<void> {
     const m = await this.modal.create({ component: AccountFormModal, cssClass: 'mf-card-modal', presentingElement: document.querySelector('ion-tabs') as HTMLElement });

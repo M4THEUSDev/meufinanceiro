@@ -39,11 +39,13 @@
       <ion-button expand="block" type="submit" [disabled]="loading()">
         @if (loading()) { <ion-spinner name="crescent"></ion-spinner> } @else { Entrar }
       </ion-button>
-      <div class="divider"><span></span><em class="t-footnote c-tertiary">ou</em><span></span></div>
-      <ion-button expand="block" class="tonal" type="button" (click)="faceId()">
-        @if (faceLoading()) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon slot="start" name="scan-outline"></ion-icon> Entrar com Face ID }
-      </ion-button>
-      <p class="hint t-caption1 c-tertiary"><ion-icon name="information-circle-outline"></ion-icon>Face ID fica disponível após o primeiro login neste iPhone.</p>
+      @if (native) {
+        <div class="divider"><span></span><em class="t-footnote c-tertiary">ou</em><span></span></div>
+        <ion-button expand="block" class="tonal" type="button" (click)="faceId()">
+          @if (faceLoading()) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon slot="start" name="scan-outline"></ion-icon> Entrar com Face ID }
+        </ion-button>
+        <p class="hint t-caption1 c-tertiary"><ion-icon name="information-circle-outline"></ion-icon>Face ID fica disponível após o primeiro login neste iPhone.</p>
+      }
     </div>
 
     <p class="legal t-caption1 c-tertiary">Ao continuar, você concorda com os <a>Termos de Uso</a> e a <a>Política de Privacidade</a>.</p>

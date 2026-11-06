@@ -44,6 +44,12 @@ export interface Transaction {
   invoicePaid?: boolean;
   /** compra parcelada: id do grupo + parcela atual / total */
   installment?: { group: string; index: number; total: number };
+  /** id da linha do extrato importado (OFX FITID ou hash) — evita duplicar */
+  importId?: string;
+  /** parcela de dívida (empréstimo/financiamento) paga por esta transação */
+  debtId?: string;
+  /** gerada por uma conta fixa / receita recorrente */
+  recurringId?: string;
   /** ISO date-time */
   date: string;
   paid: boolean;
@@ -133,6 +139,55 @@ export interface Settings {
   hasLoggedBefore?: boolean;
 }
 
+export type DebtKind = 'emprestimo' | 'financiamento' | 'acordo' | 'consignado' | 'cheque_especial' | 'outro';
+
+/** Conta fixa ou receita recorrente: gera um lançamento pendente todo mês */
+export interface Recurring {
+  id: string;
+  type: TxType;
+  description: string;
+  amount: number;
+  categoryId: string;
+  accountId: string;
+  cardId?: string;
+  /** dia do mês (1–31; meses curtos usam o último dia) */
+  day: number;
+  /** YYYY-MM do primeiro mês */
+  startMonth: string;
+  /** YYYY-MM do último mês (opcional) */
+  endMonth?: string;
+  active: boolean;
+  /** meses em que o lançamento foi excluído pelo usuário (não recriar) */
+  skip?: string[];
+  createdAt: string;
+}
+
+/** Empréstimo, financiamento ou outra dívida parcelada fora do cartão */
+export interface Debt {
+  id: string;
+  name: string;
+  /** credor, ex.: "Santander" */
+  creditor: string;
+  kind: DebtKind;
+  installmentAmount: number;
+  totalInstallments: number;
+  paidInstallments: number;
+  /** dia do vencimento da parcela */
+  dueDay: number;
+  /** conta de onde sai o pagamento */
+  accountId: string;
+  /** YYYY-MM da próxima parcela a vencer (avança a cada pagamento) */
+  nextDueMonth?: string;
+  /** saldo devedor informado pelo credor (substitui parcelas × valor) */
+  payoffAmount?: number;
+  /** ISO da data em que o saldo devedor foi informado */
+  payoffDate?: string;
+  /** juros ao mês (%), informativo */
+  monthlyRate?: number;
+  createdAt: string;
+  notes?: string;
+}
+
 export interface AppData {
   version: number;
   settings: Settings;
@@ -142,6 +197,8 @@ export interface AppData {
   budgets: Budget[];
   goals: Goal[];
   cards: CreditCard[];
+  debts: Debt[];
+  recurring: Recurring[];
 }
 
 export interface TxFilters {

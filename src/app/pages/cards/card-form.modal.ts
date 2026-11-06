@@ -34,7 +34,7 @@ import { CARD_THEMES, CardVisualComponent } from './card-visual.component';
           </div>
           @if (submitted() && error()) { <p class="err">{{ error() }}</p> }
         </div>
-        <div class="pad"><mf-currency-input [(value)]="limit" tone="neutral" label="Limite total"></mf-currency-input></div>
+        <div class="pad"><mf-currency-input [(value)]="limit" tone="neutral" label="Limite total (opcional)" hint="Deixe 0,00 se não quiser acompanhar o limite"></mf-currency-input></div>
         <div class="pad">
           <div class="mf-group">
             <label class="mf-row no-lead"><span class="label">Dia de fechamento</span><input class="value" type="number" min="1" max="28" [ngModel]="closingDay()" (ngModelChange)="closingDay.set(+$event)" /></label>
@@ -101,7 +101,6 @@ export class CardFormModal implements OnInit {
   error(): string {
     if (!this.name().trim()) return 'Informe um apelido para o cartão.';
     if (!/^\d{4}$/.test(this.last4())) return 'Informe os 4 últimos dígitos.';
-    if (this.limit() <= 0) return 'Informe o limite do cartão.';
     if (!(this.closingDay() >= 1 && this.closingDay() <= 28 && this.dueDay() >= 1 && this.dueDay() <= 28)) return 'Use dias entre 1 e 28.';
     if (!this.accountId()) return 'Selecione a conta que paga a fatura.';
     return '';

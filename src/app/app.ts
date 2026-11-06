@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { LockService } from './core/services/lock.service';
+import { UpdateService } from './core/services/update.service';
 import { LockScreenComponent } from './shared/components/lock-screen.component';
 import { OfflineBannerComponent } from './shared/components/offline-banner.component';
 
@@ -13,5 +14,6 @@ export class App {
   protected readonly lock = inject(LockService);
   constructor() {
     this.lock.init();
+    inject(UpdateService).init();
   }
 }

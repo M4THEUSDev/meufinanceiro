@@ -7,7 +7,7 @@ import { Transaction, TxType } from '../../core/models/models';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
 import { catColor } from '../../core/icons';
-import { daysBetween, fromDateInput, shortDate, toDateInput } from '../../core/utils/format';
+import { daysBetween, fromDateInput, monthKey, shortDate, toDateInput } from '../../core/utils/format';
 import { CurrencyInputComponent } from '../../shared/components/currency-input.component';
 import { openPicker } from '../../shared/components/picker.modal';
 import { CategoryFormModal } from '../categories/category-form.modal';
@@ -57,6 +57,7 @@ export class TransactionFormModal implements OnInit {
   readonly paid = signal(true);
   readonly notes = signal('');
   readonly parts = signal(1);
+  readonly repeat = signal(false);
   readonly submitted = signal(false);
   readonly dateOpen = signal(false);
   readonly maxDate = toDateInput(new Date(new Date().getFullYear() + 2, 11, 31).toISOString());
@@ -202,6 +203,14 @@ export class TransactionFormModal implements OnInit {
       const prev = this.store.transaction(this.txId);
       this.store.updateTransaction(this.txId, { ...payload, invoicePaid: payload.cardId && payload.cardId === prev?.cardId ? prev?.invoicePaid : undefined });
       tx = this.store.transaction(this.txId)!;
+    } else if (this.repeat()) {
+      const d = new Date(payload.date);
+      const rule = this.store.addRecurring({
+        type: payload.type, description: payload.description, amount: payload.amount, categoryId: payload.categoryId,
+        accountId: payload.accountId, cardId: payload.cardId, day: d.getDate(), startMonth: monthKey(d), active: true,
+      });
+      tx = this.store.addTransaction({ ...payload, recurringId: rule.id });
+      this.store.generateRecurring();
     } else if (payload.cardId && this.parts() > 1) {
       tx = this.store.addInstallments(payload, this.parts())[0];
     } else {

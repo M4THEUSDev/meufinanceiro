@@ -1,7 +1,7 @@
-import { Account, AppData, Budget, Category, CreditCard, Goal, Transaction } from '../models/models';
+import { Account, AppData, Budget, Category, CreditCard, Debt, Goal, Transaction } from '../models/models';
 import { addMonths, monthKey, round2 } from '../utils/format';
 
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 
 export const DEFAULT_CATEGORIES: Category[] = [
   // Despesas (padrão)
@@ -13,6 +13,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c_assinaturas', name: 'Assinaturas', type: 'expense', icon: 'tv-outline', color: 'assinaturas' },
   { id: 'c_lazer', name: 'Lazer', type: 'expense', icon: 'game-controller-outline', color: 'lazer' },
   { id: 'c_compras', name: 'Compras', type: 'expense', icon: 'bag-handle-outline', color: 'compras' },
+  { id: 'c_dividas', name: 'Dívidas e empréstimos', type: 'expense', icon: 'cash-outline', color: 'saude' },
   { id: 'c_outros_d', name: 'Outros', type: 'expense', icon: 'ellipsis-horizontal-circle-outline', color: 'outros' },
   // Receitas (padrão)
   { id: 'c_salario', name: 'Salário', type: 'income', icon: 'briefcase-outline', color: 'salario' },
@@ -258,6 +259,13 @@ export function buildSeed(now = new Date()): AppData {
     a.initialBalance = round2(TARGET_BALANCES[a.id] - net);
   });
 
+  const debts: Debt[] = [
+    {
+      id: 'd_carro', name: 'Financiamento do carro', creditor: 'Santander', kind: 'financiamento', installmentAmount: 890,
+      totalInstallments: 48, paidInstallments: 18, dueDay: 20, accountId: 'a_itau', monthlyRate: 1.49, createdAt: created,
+    },
+  ];
+
   const bm = addMonths(curKey, -5);
   const budgets: Budget[] = [
     ['c_transporte', 400], ['c_lazer', 300], ['c_assinaturas', 250], ['c_compras', 2000],
@@ -306,5 +314,10 @@ export function buildSeed(now = new Date()): AppData {
     budgets,
     goals,
     cards,
+    debts,
+    recurring: [
+      { id: 'r_salario', type: 'income', description: 'Salário — Acme Ltda', amount: 8650, categoryId: 'c_salario', accountId: 'a_itau', day: 5, startMonth: addMonths(curKey, 1), active: true, createdAt: created },
+      { id: 'r_internet', type: 'expense', description: 'Internet Fibra', amount: 119.9, categoryId: 'c_assinaturas', accountId: 'a_itau', day: Math.min(28, today + 2), startMonth: addMonths(curKey, 1), active: true, createdAt: created },
+    ],
   };
 }

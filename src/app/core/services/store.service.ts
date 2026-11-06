@@ -1,16 +1,16 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import {
-  Account, AppData, Budget, Category, CreditCard, Goal, GoalContribution, Settings, Transaction, TxFilters, TxType,
+  Account, AppData, Budget, Category, CreditCard, Debt, Goal, GoalContribution, Recurring, Settings, Transaction, TxFilters, TxType,
 } from '../models/models';
 import { addMonths, daysBetween, monthKey, round2, startOfDay, uid } from '../utils/format';
-import { DATA_VERSION, buildSeed } from './seed';
+import { DATA_VERSION, DEFAULT_CATEGORIES, buildSeed } from './seed';
 
 const STORAGE_KEY = 'mf:data';
 
 export interface Bill {
   id: string;
-  kind: 'tx' | 'card';
+  kind: 'tx' | 'card' | 'debt';
   name: string;
   amount: number;
   due: Date;
@@ -18,6 +18,13 @@ export interface Bill {
   days: number;
   status: 'overdue' | 'soon' | 'later';
   refId: string;
+}
+
+/** rota para abrir um vencimento */
+export function billRoute(b: Pick<Bill, 'kind' | 'refId'>): string {
+  if (b.kind === 'card') return '/tabs/mais/cartoes';
+  if (b.kind === 'debt') return '/tabs/mais/financas';
+  return `/tabs/transacoes/${b.refId}`;
 }
 
 export interface CategorySpend {
@@ -54,6 +61,8 @@ export class StoreService {
   readonly budgets = computed(() => this._data().budgets);
   readonly goals = computed(() => this._data().goals);
   readonly cards = computed(() => this._data().cards);
+  readonly debts = computed(() => this._data().debts ?? []);
+  readonly recurring = computed(() => this._data().recurring ?? []);
   readonly hidden = computed(() => this.settings().hideValues);
 
   private readonly catMap = computed(() => new Map(this._data().categories.map((c) => [c.id, c])));
@@ -98,8 +107,46 @@ export class StoreService {
       const days = daysBetween(today, due);
       out.push({ id: `b_${c.id}`, kind: 'card', name: `Fatura ${c.name}`, amount, due, days, status: this.billStatus(days), refId: c.id });
     }
+    for (const d of this.debts()) {
+      if (d.paidInstallments >= d.totalInstallments) continue;
+      const due = this.debtNextDue(d);
+      const days = daysBetween(today, due);
+      out.push({ id: `b_${d.id}`, kind: 'debt', name: `${d.name} (${d.paidInstallments + 1}/${d.totalInstallments})`, amount: d.installmentAmount, due, days, status: this.billStatus(days), refId: d.id });
+    }
     return out.sort((a, b) => a.due.getTime() - b.due.getTime());
   });
+
+  // ---------------- Ganhos e dívidas ----------------
+  /** receitas pendentes (a receber) */
+  readonly receivables = computed(() =>
+    this.transactions()
+      .filter((t) => t.type === 'income' && !t.paid)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  );
+
+  /** saldo devedor de cada dívida (cartões + empréstimos) */
+  readonly debtSummary = computed(() => {
+    const cards = this.cards().map((c) => {
+      const open = this.cardOpenAmount(c.id);
+      const future = this.cardFutureAmount(c.id);
+      return { id: c.id, kind: 'card' as const, name: c.name, creditor: c.bank, current: open, total: round2(open + future), future, byInstallments: round2(open + future), informed: false };
+    });
+    const loans = this.debts().map((d) => {
+      const remaining = Math.max(0, d.totalInstallments - d.paidInstallments);
+      const byInstallments = round2(remaining * d.installmentAmount);
+      // saldo informado pelo credor vale enquanto houver parcelas a pagar
+      const informed = remaining && d.payoffAmount != null ? round2(d.payoffAmount) : null;
+      return {
+        id: d.id, kind: 'debt' as const, name: d.name, creditor: d.creditor, current: remaining ? d.installmentAmount : 0,
+        total: informed ?? byInstallments, byInstallments, informed: informed != null, future: 0, debt: d,
+      };
+    });
+    const total = round2([...cards, ...loans].reduce((s, x) => s + x.total, 0));
+    return { cards, loans, total };
+  });
+
+  /** patrimônio líquido = saldo das contas + metas guardadas fora das contas − dívidas */
+  readonly netWorth = computed(() => round2(this.totalBalance() - this.debtSummary().total));
 
   constructor() {
     effect(() => {
@@ -114,12 +161,37 @@ export class StoreService {
       const { value } = await Preferences.get({ key: STORAGE_KEY });
       if (value) {
         const parsed = JSON.parse(value) as AppData;
-        if (parsed?.version === DATA_VERSION) this._data.set(parsed);
+        const migrated = this.migrate(parsed);
+        if (migrated) this._data.set(migrated);
       }
     } catch {
       /* dados corrompidos: mantém o seed */
     }
+    this.generateRecurring();
     this.ready.set(true);
+  }
+
+  /**
+   * Atualiza dados salvos por versões anteriores sem perder nada:
+   * acrescenta coleções/campos novos e categorias padrão que faltarem.
+   */
+  private migrate(d: AppData): AppData | null {
+    if (!d || !Array.isArray(d.transactions) || !d.settings) return null;
+    if (d.version > DATA_VERSION) return null;
+    const seed = buildSeed();
+    const ids = new Set((d.categories ?? []).map((c) => c.id));
+    return {
+      ...d,
+      version: DATA_VERSION,
+      settings: { ...seed.settings, ...d.settings },
+      accounts: d.accounts ?? [],
+      categories: [...(d.categories ?? []), ...DEFAULT_CATEGORIES.filter((c) => !ids.has(c.id))],
+      budgets: d.budgets ?? [],
+      goals: d.goals ?? [],
+      cards: (d.cards ?? []).map((c) => ({ ...c, bank: c.bank ?? c.name, tier: c.tier ?? '' })),
+      debts: d.debts ?? [],
+      recurring: d.recurring ?? [],
+    };
   }
 
   /** compras no cartão saem da conta que paga a fatura */
@@ -303,19 +375,35 @@ export class StoreService {
     return round2(g.contributions.reduce((s, c) => s + c.amount, 0));
   }
 
-  /** fatura atual: compras no cartão ainda não quitadas, até hoje */
-  cardOpenAmount(cardId: string): number {
-    const now = Date.now();
-    return round2(
-      this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() <= now).reduce((s, t) => s + t.amount, 0),
-    );
+  /**
+   * Corte da fatura atual: início do dia de fechamento ligado ao próximo vencimento.
+   * Compras feitas a partir do dia de fechamento entram na fatura seguinte.
+   */
+  cardCutoff(cardId: string, from = new Date()): number {
+    const c = this.card(cardId);
+    if (!c) return from.getTime();
+    const due = this.nextDueDate(c, from);
+    let closing = new Date(due.getFullYear(), due.getMonth(), c.closingDay);
+    if (closing >= due) closing = new Date(due.getFullYear(), due.getMonth() - 1, c.closingDay);
+    return Math.min(closing.getTime(), startOfDay(new Date(from.getTime() + 86400000)).getTime());
   }
 
-  /** parcelas futuras (ainda não faturadas) */
+  /** compras do cartão na fatura atual (não quitadas, antes do fechamento) */
+  cardInvoiceItems(cardId: string): Transaction[] {
+    const cut = this.cardCutoff(cardId);
+    return this.transactions().filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() < cut);
+  }
+
+  /** fatura atual */
+  cardOpenAmount(cardId: string): number {
+    return round2(this.cardInvoiceItems(cardId).reduce((s, t) => s + t.amount, 0));
+  }
+
+  /** próximas faturas: compras após o fechamento + parcelas futuras */
   cardFutureAmount(cardId: string): number {
-    const now = Date.now();
+    const cut = this.cardCutoff(cardId);
     return round2(
-      this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() > now).reduce((s, t) => s + t.amount, 0),
+      this._data().transactions.filter((t) => t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() >= cut).reduce((s, t) => s + t.amount, 0),
     );
   }
 
@@ -354,6 +442,28 @@ export class StoreService {
     let d = new Date(today.getFullYear(), today.getMonth(), c.closingDay);
     if (d < today) d = new Date(today.getFullYear(), today.getMonth() + 1, c.closingDay);
     return d;
+  }
+
+  /** vencimento da próxima parcela da dívida */
+  debtNextDue(d: Debt, from = new Date()): Date {
+    if (d.nextDueMonth) {
+      const [y, m] = d.nextDueMonth.split('-').map(Number);
+      return new Date(y, m - 1, Math.min(d.dueDay, new Date(y, m, 0).getDate()));
+    }
+    const today = startOfDay(from);
+    const key = monthKey(today);
+    const paidThisMonth = this._data().transactions.some((t) => t.debtId === d.id && monthKey(new Date(t.date)) === key);
+    const last = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+    if (paidThisMonth) {
+      const y = today.getFullYear();
+      const m = today.getMonth() + 1;
+      return new Date(y, m, Math.min(d.dueDay, last(y, m)));
+    }
+    return new Date(today.getFullYear(), today.getMonth(), Math.min(d.dueDay, last(today.getFullYear(), today.getMonth())));
+  }
+
+  debt(id: string | undefined): Debt | undefined {
+    return id ? this.debts().find((d) => d.id === id) : undefined;
   }
 
   private billStatus(days: number): Bill['status'] {
@@ -405,24 +515,74 @@ export class StoreService {
 
   deleteTransaction(id: string): Transaction | undefined {
     const t = this.transaction(id);
-    this.patch((d) => ({ ...d, transactions: d.transactions.filter((x) => x.id !== id) }));
+    this.patch((d) => ({
+      ...d,
+      transactions: d.transactions.filter((x) => x.id !== id),
+      recurring: t?.recurringId
+        ? (d.recurring ?? []).map((r) => (r.id === t.recurringId ? { ...r, skip: [...new Set([...(r.skip ?? []), monthKey(new Date(t.date))])] } : r))
+        : d.recurring,
+      // excluir o pagamento de uma parcela devolve a parcela à dívida
+      debts: t?.debtId ? (d.debts ?? []).map((x) => (x.id === t.debtId ? { ...x, paidInstallments: Math.max(0, x.paidInstallments - 1), nextDueMonth: x.nextDueMonth ? addMonths(x.nextDueMonth, -1) : undefined } : x)) : d.debts,
+    }));
     return t;
   }
 
+  restoreTransactionWithDebt(t: Transaction): void {
+    this.patch((d) => ({
+      ...d,
+      transactions: [t, ...d.transactions],
+      debts: t.debtId ? (d.debts ?? []).map((x) => (x.id === t.debtId ? { ...x, paidInstallments: Math.min(x.totalInstallments, x.paidInstallments + 1), nextDueMonth: x.nextDueMonth ? addMonths(x.nextDueMonth, 1) : undefined } : x)) : d.debts,
+    }));
+  }
+
   restoreTransaction(t: Transaction): void {
-    this.patch((d) => ({ ...d, transactions: [t, ...d.transactions] }));
+    if (t.debtId) return this.restoreTransactionWithDebt(t);
+    const k = monthKey(new Date(t.date));
+    this.patch((d) => ({
+      ...d,
+      transactions: [t, ...d.transactions],
+      recurring: t.recurringId ? (d.recurring ?? []).map((r) => (r.id === t.recurringId ? { ...r, skip: (r.skip ?? []).filter((x) => x !== k) } : r)) : d.recurring,
+    }));
   }
 
   markPaid(id: string, paid = true): void {
     this.updateTransaction(id, { paid });
   }
 
+  /**
+   * Fatura informada manualmente (sem detalhar compras): fica como um único lançamento no cartão.
+   * Se já houver uma fatura informada em aberto neste cartão, o valor é atualizado.
+   */
+  setInvoiceAmount(cardId: string, amount: number): Transaction | undefined {
+    const card = this.card(cardId);
+    if (!card) return undefined;
+    const open = this._data().transactions.find((t) => t.cardId === cardId && !t.invoicePaid && t.importId === `invoice:${cardId}`);
+    const others = round2(this.cardOpenAmount(cardId) - (open?.amount ?? 0));
+    const value = round2(Math.max(0, amount - others));
+    if (open) {
+      this.updateTransaction(open.id, { amount: value });
+      return this.transaction(open.id);
+    }
+    if (value <= 0) return undefined;
+    const due = this.nextDueDate(card);
+    return this.addTransaction({
+      type: 'expense', description: `Fatura ${card.name} (valor informado)`, amount: value,
+      categoryId: this.category('c_outros_d') ? 'c_outros_d' : (this.categoriesOf('expense')[0]?.id ?? ''),
+      accountId: card.accountId, cardId, date: new Date().toISOString(), paid: true, importId: `invoice:${cardId}`,
+      notes: `Valor total da fatura com vencimento em ${due.toLocaleDateString('pt-BR')}, informado sem o detalhe das compras.`,
+    });
+  }
+
   payCardInvoice(cardId: string): number {
     const amount = this.cardOpenAmount(cardId);
-    const now = Date.now();
+    const cut = this.cardCutoff(cardId);
     this.patch((d) => ({
       ...d,
-      transactions: d.transactions.map((t) => (t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() <= now ? { ...t, paid: true, invoicePaid: true } : t)),
+      transactions: d.transactions.map((t) =>
+        t.cardId === cardId && !t.invoicePaid && new Date(t.date).getTime() < cut
+          ? { ...t, paid: true, invoicePaid: true, importId: t.importId === `invoice:${cardId}` ? `invoice:${cardId}:${t.id}` : t.importId }
+          : t,
+      ),
     }));
     return amount;
   }
@@ -520,6 +680,122 @@ export class StoreService {
     }));
   }
 
+  addDebt(d: Omit<Debt, 'id' | 'createdAt'>): Debt {
+    const debt: Debt = { ...d, installmentAmount: round2(d.installmentAmount), id: uid('d'), createdAt: new Date().toISOString() };
+    this.patch((x) => ({ ...x, debts: [...(x.debts ?? []), debt] }));
+    return debt;
+  }
+
+  updateDebt(id: string, p: Partial<Debt>): void {
+    this.patch((x) => ({ ...x, debts: (x.debts ?? []).map((d) => (d.id === id ? { ...d, ...p, id } : d)) }));
+  }
+
+  deleteDebt(id: string): void {
+    this.patch((x) => ({ ...x, debts: (x.debts ?? []).filter((d) => d.id !== id) }));
+  }
+
+  /** paga a próxima parcela: lança a despesa na conta e avança o contador */
+  payDebtInstallment(id: string, amount?: number, date = new Date().toISOString(), cardId?: string): Transaction | undefined {
+    const d = this.debt(id);
+    if (!d || d.paidInstallments >= d.totalInstallments) return undefined;
+    const n = d.paidInstallments + 1;
+    const tx = this.addTransaction({
+      type: 'expense',
+      description: `${d.name} — parcela ${n}/${d.totalInstallments}`,
+      amount: amount ?? d.installmentAmount,
+      categoryId: this.category('c_dividas') ? 'c_dividas' : (this.categoriesOf('expense')[0]?.id ?? 'c_outros_d'),
+      accountId: cardId ? (this.card(cardId)?.accountId ?? d.accountId) : d.accountId,
+      cardId,
+      date,
+      paid: true,
+      debtId: d.id,
+    });
+    this.updateDebt(id, { paidInstallments: n, nextDueMonth: d.nextDueMonth ? addMonths(d.nextDueMonth, 1) : undefined });
+    return tx;
+  }
+
+  // ---------------- Contas fixas / recorrentes ----------------
+  recurringRule(id: string | undefined): Recurring | undefined {
+    return id ? this.recurring().find((r) => r.id === id) : undefined;
+  }
+
+  /**
+   * Cria os lançamentos pendentes das regras recorrentes do primeiro mês da regra até o mês seguinte ao atual
+   * (assim as contas do começo do próximo mês já aparecem). Nunca duplica e respeita meses excluídos.
+   */
+  generateRecurring(now = new Date()): number {
+    const last = addMonths(monthKey(now), 1);
+    const existing = new Set(this._data().transactions.filter((t) => t.recurringId).map((t) => `${t.recurringId}|${monthKey(new Date(t.date))}`));
+    const created: Transaction[] = [];
+    for (const r of this.recurring()) {
+      if (!r.active) continue;
+      const end = r.endMonth && r.endMonth < last ? r.endMonth : last;
+      for (let k = r.startMonth; k <= end; k = addMonths(k, 1)) {
+        if (existing.has(`${r.id}|${k}`) || r.skip?.includes(k)) continue;
+        const [y, m] = k.split('-').map(Number);
+        const day = Math.min(r.day, new Date(y, m, 0).getDate());
+        const date = new Date(y, m - 1, day, 9, 0).toISOString();
+        created.push({
+          id: uid('t'), type: r.type, description: r.description, amount: r.amount, categoryId: r.categoryId, accountId: r.accountId,
+          cardId: r.cardId, date, paid: false, recurringId: r.id, createdAt: new Date().toISOString(),
+        });
+      }
+    }
+    if (created.length) this.patch((d) => ({ ...d, transactions: [...created, ...d.transactions] }));
+    return created.length;
+  }
+
+  addRecurring(r: Omit<Recurring, 'id' | 'createdAt'>): Recurring {
+    const rule: Recurring = { ...r, amount: round2(r.amount), id: uid('r'), createdAt: new Date().toISOString() };
+    this.patch((d) => ({ ...d, recurring: [...(d.recurring ?? []), rule] }));
+    return rule;
+  }
+
+  /** altera a regra; lançamentos futuros ainda pendentes acompanham a mudança */
+  updateRecurring(id: string, p: Partial<Recurring>): void {
+    const cur = monthKey(new Date());
+    this.patch((d) => {
+      const rule = { ...(d.recurring ?? []).find((r) => r.id === id)!, ...p, id };
+      return {
+        ...d,
+        recurring: (d.recurring ?? []).map((r) => (r.id === id ? rule : r)),
+        transactions: d.transactions
+          .filter((t) => !(t.recurringId === id && !t.paid && monthKey(new Date(t.date)) >= cur && (!rule.active || (rule.endMonth && monthKey(new Date(t.date)) > rule.endMonth))))
+          .map((t) => {
+            if (t.recurringId !== id || t.paid || monthKey(new Date(t.date)) < cur) return t;
+            const dt = new Date(t.date);
+            const day = Math.min(rule.day, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate());
+            return { ...t, description: rule.description, amount: rule.amount, categoryId: rule.categoryId, accountId: rule.accountId, cardId: rule.cardId, type: rule.type, date: new Date(dt.getFullYear(), dt.getMonth(), day, 9, 0).toISOString() };
+          }),
+      };
+    });
+    this.generateRecurring();
+  }
+
+  /** remove a regra e os lançamentos dela ainda pendentes (os já pagos ficam no histórico) */
+  deleteRecurring(id: string): void {
+    this.patch((d) => ({
+      ...d,
+      recurring: (d.recurring ?? []).filter((r) => r.id !== id),
+      transactions: d.transactions.filter((t) => !(t.recurringId === id && !t.paid)),
+    }));
+  }
+
+  /** importa lançamentos de extrato, ignorando os que já existem (importId) */
+  importTransactions(list: Omit<Transaction, 'id' | 'createdAt'>[]): number {
+    const existing = new Set(this._data().transactions.map((t) => t.importId).filter(Boolean));
+    const now = new Date().toISOString();
+    const fresh = list
+      .filter((t) => !t.importId || !existing.has(t.importId))
+      .map((t) => ({ ...t, amount: round2(t.amount), id: uid('t'), createdAt: now }) as Transaction);
+    if (fresh.length) this.patch((d) => ({ ...d, transactions: [...fresh, ...d.transactions] }));
+    return fresh.length;
+  }
+
+  hasImportId(id: string): boolean {
+    return this._data().transactions.some((t) => t.importId === id);
+  }
+
   addCard(c: Omit<CreditCard, 'id'>): CreditCard {
     const card: CreditCard = { ...c, id: uid('k') };
     this.patch((d) => ({ ...d, cards: [...d.cards, card] }));
@@ -543,6 +819,7 @@ export class StoreService {
     const seed = buildSeed();
     const s = this.settings();
     this._data.set({ ...seed, settings: { ...seed.settings, ...s } });
+    this.generateRecurring();
   }
 
   clearAll(): void {
@@ -556,6 +833,8 @@ export class StoreService {
       budgets: [],
       goals: [],
       cards: [],
+      debts: [],
+      recurring: [],
       categories: seed.categories.filter((c) => !c.custom),
     });
   }
@@ -582,9 +861,23 @@ export class StoreService {
 
   importJson(json: string): boolean {
     try {
-      const d = JSON.parse(json) as AppData;
-      if (!d || !Array.isArray(d.transactions) || !d.settings) return false;
-      this._data.set({ ...d, version: DATA_VERSION });
+      const d = this.migrate(JSON.parse(json) as AppData);
+      if (!d) return false;
+      // o backup não troca a sessão/senha deste aparelho
+      const s = this.settings();
+      const raw = (JSON.parse(json) as AppData).settings ?? {};
+      d.settings = {
+        ...d.settings,
+        loggedIn: s.loggedIn,
+        email: raw.passwordHash ? d.settings.email : s.email,
+        passwordHash: raw.passwordHash ?? s.passwordHash,
+        hasLoggedBefore: raw.passwordHash ? d.settings.hasLoggedBefore : s.hasLoggedBefore,
+        faceId: raw.passwordHash ? d.settings.faceId : s.faceId,
+        onboarded: true,
+        lastActiveAt: new Date().toISOString(),
+      };
+      this._data.set(d);
+      this.generateRecurring();
       return true;
     } catch {
       return false;

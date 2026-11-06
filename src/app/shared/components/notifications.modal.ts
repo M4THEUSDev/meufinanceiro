@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, ModalController } from '@ionic/angular/standalone';
-import { StoreService } from '../../core/services/store.service';
+import { Bill, StoreService, billRoute } from '../../core/services/store.service';
 import { monthKey } from '../../core/utils/format';
 import { BillItemComponent } from './bill-item.component';
 import { CategoryIconComponent } from './category-icon.component';
@@ -24,7 +24,7 @@ import { CategoryIconComponent } from './category-icon.component';
         @if (bills().length) {
           <p class="mf-label">Vencimentos</p>
           <div class="mf-list">
-            @for (b of bills(); track b.id) { <mf-bill-item [bill]="b" (click)="go(b.kind === 'card' ? '/tabs/mais/cartoes' : '/tabs/transacoes/' + b.refId)"></mf-bill-item> }
+            @for (b of bills(); track b.id) { <mf-bill-item [bill]="b" (click)="go(route(b))"></mf-bill-item> }
           </div>
         }
         @if (alerts().length) {
@@ -72,6 +72,10 @@ export class NotificationsModal {
       .filter((a) => a.pct >= a.alertAt)
       .map((a) => ({ ...a, over: a.pct > 100, text: a.pct > 100 ? `Estourou o orçamento (${a.pct}%)` : `${a.pct}% do orçamento usado` }));
   });
+
+  route(b: Bill): string {
+    return billRoute(b);
+  }
 
   go(url: string): void {
     void this.modalCtrl.dismiss();

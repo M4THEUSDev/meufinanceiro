@@ -24,6 +24,8 @@ export class LockService {
       if (this.store.settings().loggedIn) this.store.updateSettings({ lastActiveAt: new Date().toISOString() });
     };
     const onShow = () => {
+      // virou o mês com o app aberto: cria as contas fixas do novo mês
+      this.store.generateRecurring();
       if (!this.checkSession()) this.evaluate();
     };
     if (Capacitor.isNativePlatform()) {

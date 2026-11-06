@@ -59,3 +59,7 @@ p { margin: 0; }
 }
 
 .skeleton { padding-top: 8px; }
+
+.owe { display: flex; flex-direction: column; gap: 12px; width: 100%; text-align: left; }
+.owe-head { display: flex; justify-content: space-between; align-items: center; ion-icon { color: var(--mf-text-tertiary); font-size: 16px; } }
+.owe-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px; border-radius: 12px; background: var(--ion-color-step-50); span:last-child { overflow: hidden; text-overflow: ellipsis; } } }
