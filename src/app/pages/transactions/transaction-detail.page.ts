@@ -10,6 +10,7 @@ import { CategoryIconComponent } from '../../shared/components/category-icon.com
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
 import { confirmDeleteTransaction } from './transaction-actions';
 import { openTransactionForm } from './transaction-form.modal';
+import { openRecurringForm } from '../recurring/recurring-form.modal';
 
 /** [K] Transações · Detalhes  /  [M] Confirmar exclusão */
 @Component({
@@ -74,6 +75,15 @@ import { openTransactionForm } from './transaction-form.modal';
             </div>
           </div>
 
+          @if (t.recurringId) {
+            <div class="pad">
+              <button class="mf-reset rec" type="button" (click)="editRecurring(t.recurringId)">
+                <ion-icon name="repeat-outline"></ion-icon>
+                <span class="grow"><span class="t-subhead-sb">Repete todo mês</span><span class="t-caption1 c-secondary">Altere o valor só deste mês em Editar, ou a recorrência inteira aqui</span></span>
+                <ion-icon class="chev" name="chevron-forward"></ion-icon>
+              </button>
+            </div>
+          }
           @if (t.notes) {
             <div class="pad">
               <p class="mf-label">Observações</p>
@@ -105,6 +115,10 @@ import { openTransactionForm } from './transaction-form.modal';
     .notes { background: var(--ion-card-background); border-radius: var(--mf-radius-xl); padding: 16px; white-space: pre-wrap; }
     .actions { gap: 10px; }
     .toggle-hint { display: none; }
+    .rec { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--mf-radius-lg); background: var(--ion-card-background); text-align: left; width: 100%; }
+    .rec > ion-icon:first-child { font-size: 20px; color: var(--mf-category-transporte); }
+    .rec .grow { flex: 1; display: flex; flex-direction: column; }
+    .chev { color: var(--mf-text-tertiary); font-size: 16px; }
   `,
 })
 export class TransactionDetailPage {
@@ -135,6 +149,10 @@ export class TransactionDetailPage {
     if (!t) return;
     this.store.markPaid(t.id, !t.paid);
     this.ui.tap();
+  }
+
+  async editRecurring(id: string): Promise<void> {
+    await openRecurringForm(this.modal, { ruleId: id });
   }
 
   async edit(): Promise<void> {

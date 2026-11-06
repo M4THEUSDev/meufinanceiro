@@ -99,6 +99,16 @@
       }
     </div>
 
+    @if (nextStart().length) {
+      <div class="pad">
+        <div class="row-between"><h2 class="t-title3">Começo de {{ nextMonthName() }}</h2><span class="t-headline c-danger">{{ nextStartTotal() | money }}</span></div>
+        <p class="note t-footnote c-secondary">Vence até o dia 10 de {{ nextMonthName() }} — reserve do salário que entra no fim de {{ monthName() }}.</p>
+        <div class="mf-list">
+          @for (b of nextStart(); track b.id) { <mf-bill-item [bill]="b" (click)="openBill(b)"></mf-bill-item> }
+        </div>
+      </div>
+    }
+
     <!-- Dívidas -->
     <div class="pad">
       <div class="row-between"><h2 class="t-title3">Dívidas</h2><span class="t-headline c-danger">{{ debts().total | money }}</span></div>
@@ -116,7 +126,7 @@
               <span class="di card"><ion-icon name="card-outline"></ion-icon></span>
               <span class="grow left">
                 <span class="t-subhead-sb ellipsis">{{ c.name }}</span>
-                <span class="t-caption1 c-secondary">Fatura atual {{ c.current | money }} · parcelas futuras {{ c.future | money }}</span>
+                <span class="t-caption1 c-secondary">Fatura atual {{ c.current | money }} · próximas faturas {{ c.future | money }}</span>
               </span>
               <span class="t-footnote-sb nowrap">{{ c.total | money }}</span>
               <ion-icon class="chev" name="chevron-forward"></ion-icon>

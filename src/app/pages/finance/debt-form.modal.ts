@@ -4,13 +4,14 @@ import { IonButton, IonContent, IonHeader, IonIcon, ModalController } from '@ion
 import { DebtKind } from '../../core/models/models';
 import { StoreService } from '../../core/services/store.service';
 import { UiService } from '../../core/services/ui.service';
-import { HIDDEN_MASK, money, round2 } from '../../core/utils/format';
+import { HIDDEN_MASK, addMonths, money, monthKey, monthLabel, round2 } from '../../core/utils/format';
 import { CurrencyInputComponent } from '../../shared/components/currency-input.component';
 import { openPicker } from '../../shared/components/picker.modal';
 
 export const DEBT_KINDS: { id: DebtKind; label: string; icon: string }[] = [
   { id: 'emprestimo', label: 'Empréstimo', icon: 'cash-outline' },
   { id: 'financiamento', label: 'Financiamento', icon: 'car-outline' },
+  { id: 'acordo', label: 'Acordo', icon: 'checkmark-done-outline' },
   { id: 'consignado', label: 'Consignado', icon: 'briefcase-outline' },
   { id: 'cheque_especial', label: 'Cheque especial', icon: 'alert-circle-outline' },
   { id: 'outro', label: 'Outra dívida', icon: 'document-text-outline' },
@@ -52,6 +53,7 @@ export const DEBT_KINDS: { id: DebtKind; label: string; icon: string }[] = [
             <label class="mf-row no-lead"><span class="label">Parcelas já pagas</span><input class="value" type="number" inputmode="numeric" min="0" [ngModel]="paid()" (ngModelChange)="paid.set(+$event || 0)" /></label>
             <label class="mf-row no-lead"><span class="label">Dia do vencimento</span><input class="value" type="number" inputmode="numeric" min="1" max="31" [ngModel]="dueDay()" (ngModelChange)="dueDay.set(+$event || 0)" /></label>
             <label class="mf-row no-lead"><span class="label">Juros ao mês (%)</span><input class="value" type="text" inputmode="decimal" placeholder="Opcional" [ngModel]="rate()" (ngModelChange)="rate.set($event)" /></label>
+            <button class="mf-row no-lead" type="button" (click)="pickNext()"><span class="label">Próxima parcela vence em</span><span class="value">{{ nextLabel() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon></button>
             <button class="mf-row no-lead" type="button" (click)="pickAccount()"><span class="label">Pagar com</span><span class="value">{{ accountName() }}</span><ion-icon class="chev" name="chevron-forward"></ion-icon></button>
           </div>
           @if (submitted() && error()) { <p class="err">{{ error() }}</p> }
@@ -98,6 +100,8 @@ export class DebtFormModal implements OnInit {
   readonly dueDay = signal(10);
   readonly rate = signal('');
   readonly accountId = signal('');
+  readonly nextDue = signal(monthKey(new Date()));
+  readonly nextLabel = computed(() => `${String(Math.min(this.dueDay() || 1, 31)).padStart(2, '0')} de ${monthLabel(this.nextDue()).toLowerCase()}`);
   readonly submitted = signal(false);
 
   readonly left = computed(() => Math.max(0, this.total() - this.paid()));
@@ -120,6 +124,7 @@ export class DebtFormModal implements OnInit {
       this.kind.set(d.kind); this.name.set(d.name); this.creditor.set(d.creditor); this.installment.set(d.installmentAmount);
       this.total.set(d.totalInstallments); this.paid.set(d.paidInstallments); this.dueDay.set(d.dueDay);
       this.rate.set(d.monthlyRate ? String(d.monthlyRate).replace('.', ',') : ''); this.accountId.set(d.accountId);
+      this.nextDue.set(d.nextDueMonth ?? monthKey(this.store.debtNextDue(d)));
     } else {
       this.accountId.set(this.store.activeAccounts().find((a) => a.kind === 'corrente' || a.kind === 'digital')?.id ?? this.store.activeAccounts()[0]?.id ?? '');
     }
@@ -127,6 +132,13 @@ export class DebtFormModal implements OnInit {
 
   fmt(v: number): string {
     return this.store.hidden() ? HIDDEN_MASK : money(v);
+  }
+
+  async pickNext(): Promise<void> {
+    const now = monthKey(new Date());
+    const months = Array.from({ length: 14 }, (_, i) => addMonths(now, i - 1));
+    const id = await openPicker(this.modalCtrl, { title: 'Próxima parcela vence em', selected: this.nextDue(), options: months.map((m) => ({ id: m, label: monthLabel(m) })) });
+    if (id) this.nextDue.set(id);
   }
 
   async pickAccount(): Promise<void> {
@@ -145,7 +157,7 @@ export class DebtFormModal implements OnInit {
     const data = {
       kind: this.kind(), name: this.name().trim(), creditor: this.creditor().trim(), installmentAmount: this.installment(),
       totalInstallments: Math.round(this.total()), paidInstallments: Math.round(this.paid()), dueDay: Math.round(this.dueDay()),
-      accountId: this.accountId(), monthlyRate: Number.isFinite(rate) && rate > 0 ? rate : undefined,
+      accountId: this.accountId(), nextDueMonth: this.paid() < this.total() ? this.nextDue() : undefined, monthlyRate: Number.isFinite(rate) && rate > 0 ? rate : undefined,
     };
     if (this.debtId) {
       this.store.updateDebt(this.debtId, data);

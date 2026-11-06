@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { monthKey } from '../utils/format';
+import { addMonths, monthKey } from '../utils/format';
 import { StoreService, defaultFilters } from './store.service';
 
 describe('StoreService', () => {
@@ -104,5 +104,44 @@ describe('StoreService · dívidas e importação', () => {
     const line = { type: 'expense' as const, description: 'Padaria', amount: 10, categoryId: 'c_alimentacao', accountId: 'a_nubank', date: new Date().toISOString(), paid: true, importId: 'nuconta:x1' };
     expect(store.importTransactions([line])).toBe(1);
     expect(store.importTransactions([line])).toBe(0);
+  });
+});
+
+describe('StoreService · recorrências, fechamento do cartão e acordos', () => {
+  let store: StoreService;
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(StoreService);
+  });
+
+  it('conta fixa gera lançamento pendente por mês, sem duplicar e respeitando exclusões', () => {
+    store.generateRecurring(); // recorrências dos dados de exemplo
+    const r = store.addRecurring({ type: 'expense', description: 'Claro', amount: 232, categoryId: 'c_moradia', accountId: 'a_nubank', day: 5, startMonth: monthKey(new Date()), active: true });
+    const n = store.generateRecurring();
+    expect(n).toBe(2); // mês atual + próximo
+    expect(store.generateRecurring()).toBe(0);
+    const occ = store.transactions().filter((t) => t.recurringId === r.id);
+    expect(occ.every((t) => !t.paid && t.amount === 232)).toBeTrue();
+    store.deleteTransaction(occ[0].id);
+    expect(store.generateRecurring()).toBe(0);
+  });
+
+  it('compra feita no dia do fechamento vai para a próxima fatura', () => {
+    const today = new Date();
+    store.updateCard('k_black', { closingDay: today.getDate(), dueDay: ((today.getDate() + 6) % 28) + 1 });
+    const before = store.cardOpenAmount('k_black');
+    store.addTransaction({ type: 'expense', description: 'Pix no crédito', amount: 200, categoryId: 'c_outros_d', accountId: 'a_itau', cardId: 'k_black', date: today.toISOString(), paid: true });
+    expect(store.cardOpenAmount('k_black')).toBeCloseTo(before, 2);
+    expect(store.cardFutureAmount('k_black')).toBeGreaterThanOrEqual(200);
+  });
+
+  it('dívida com próxima parcela em outro mês vence no mês certo e avança ao pagar', () => {
+    const next = addMonths(monthKey(new Date()), 1);
+    const d = store.addDebt({ name: 'Acordo', creditor: 'Nubank', kind: 'acordo', installmentAmount: 1000, totalInstallments: 12, paidInstallments: 8, dueDay: 4, accountId: 'a_nubank', nextDueMonth: next });
+    expect(monthKey(store.debtNextDue(d))).toBe(next);
+    const tx = store.payDebtInstallment(d.id)!;
+    expect(store.debt(d.id)!.nextDueMonth).toBe(addMonths(next, 1));
+    store.deleteTransaction(tx.id);
+    expect(store.debt(d.id)!.nextDueMonth).toBe(next);
   });
 });

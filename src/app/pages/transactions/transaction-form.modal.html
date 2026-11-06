@@ -37,7 +37,7 @@
           <span class="value">{{ sourceLabel() }}</span>
           <ion-icon class="chev" name="chevron-forward"></ion-icon>
         </button>
-        @if (card() && !isEdit()) {
+        @if (card() && !isEdit() && !repeat()) {
           <button class="mf-row" type="button" (click)="pickParts()">
             <span class="lead" style="--lead: var(--mf-category-moradia)"><ion-icon name="layers-outline"></ion-icon></span>
             <span class="label">Parcelas</span>
@@ -56,6 +56,13 @@
           <span class="label grow">{{ type() === 'income' ? 'Recebido' : 'Pago' }}</span>
           <ion-toggle [checked]="paid()" (ionChange)="paid.set($any($event).detail.checked)" aria-label="Pago"></ion-toggle>
         </div>
+        @if (!isEdit() && parts() === 1) {
+          <div class="mf-row">
+            <span class="lead" style="--lead: var(--mf-category-transporte)"><ion-icon name="repeat-outline"></ion-icon></span>
+            <span class="label grow">Repetir todo mês<span class="sub">Cria esta conta como pendente nos próximos meses</span></span>
+            <ion-toggle [checked]="repeat()" (ionChange)="repeat.set($any($event).detail.checked)" aria-label="Repetir todo mês"></ion-toggle>
+          </div>
+        }
       </div>
       @if (submitted() && (errors().description || errors().category || errors().account)) {
         <p class="err">Preencha {{ missing() }} para salvar.</p>

@@ -315,5 +315,9 @@ export function buildSeed(now = new Date()): AppData {
     goals,
     cards,
     debts,
+    recurring: [
+      { id: 'r_salario', type: 'income', description: 'Salário — Acme Ltda', amount: 8650, categoryId: 'c_salario', accountId: 'a_itau', day: 5, startMonth: addMonths(curKey, 1), active: true, createdAt: created },
+      { id: 'r_internet', type: 'expense', description: 'Internet Fibra', amount: 119.9, categoryId: 'c_assinaturas', accountId: 'a_itau', day: Math.min(28, today + 2), startMonth: addMonths(curKey, 1), active: true, createdAt: created },
+    ],
   };
 }

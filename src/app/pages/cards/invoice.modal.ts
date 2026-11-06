@@ -47,10 +47,7 @@ export class InvoiceModal {
   cardId!: string;
 
   readonly card = computed(() => this.store.card(this.cardId));
-  readonly items = computed(() => {
-    const now = Date.now();
-    return this.store.transactions().filter((t) => t.cardId === this.cardId && !t.invoicePaid && new Date(t.date).getTime() <= now);
-  });
+  readonly items = computed(() => this.store.cardInvoiceItems(this.cardId));
   readonly total = computed(() => this.store.cardOpenAmount(this.cardId));
   readonly account = computed(() => this.store.account(this.card()?.accountId)?.name ?? 'conta');
 

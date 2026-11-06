@@ -62,6 +62,13 @@ export class FinancePage {
     const key = this.month();
     return this.store.bills().filter((b) => monthKey(b.due) === key || (b.status === 'overdue' && monthKey(b.due) < key));
   });
+  /** o que vence no começo do mês seguinte (até o dia 10) — quem recebe no fim do mês já precisa reservar */
+  readonly nextStart = computed<Bill[]>(() => {
+    const next = addMonths(this.month(), 1);
+    return this.store.bills().filter((b) => monthKey(b.due) === next && b.due.getDate() <= 10);
+  });
+  readonly nextStartTotal = computed(() => round2(this.nextStart().reduce((s, b) => s + b.amount, 0)));
+  readonly nextMonthName = computed(() => MONTHS[parseMonthKey(addMonths(this.month(), 1)).getMonth()]);
   readonly payTotal = computed(() => round2(this.payables().reduce((s, b) => s + b.amount, 0)));
   readonly overdueTotal = computed(() => round2(this.payables().filter((b) => b.status === 'overdue').reduce((s, b) => s + b.amount, 0)));
   readonly paidExpenses = computed(() => round2(this.store.txOfMonth(this.month()).filter((t) => t.type === 'expense' && t.paid && !t.cardId).reduce((s, t) => s + t.amount, 0)));
@@ -133,13 +140,22 @@ export class FinancePage {
   async payDebt(id: string): Promise<void> {
     const d = this.store.debt(id);
     if (!d) return;
-    const ok = await this.ui.confirm({
-      header: `Pagar parcela ${d.paidInstallments + 1}/${d.totalInstallments}?`,
-      message: `${this.hide(`R$ ${d.installmentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)} serão lançados como despesa em ${this.store.account(d.accountId)?.name ?? 'conta'}.`,
-      confirmText: 'Pagar',
+    // escolhe de onde sai: conta cadastrada ou cartão (ex.: Pix no crédito)
+    const value = this.hide(`R$ ${d.installmentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+    let cardId: string | undefined;
+    let chosen = false;
+    const s = await this.sheet.create({
+      header: `Pagar parcela ${d.paidInstallments + 1}/${d.totalInstallments} · ${value}`,
+      buttons: [
+        { text: `Com saldo de ${this.store.account(d.accountId)?.name ?? 'conta'}`, handler: () => { chosen = true; } },
+        ...this.store.cards().map((c) => ({ text: `No crédito · ${c.name} (entra na fatura)`, handler: () => { chosen = true; cardId = c.id; } })),
+        { text: 'Cancelar', role: 'cancel' },
+      ],
     });
-    if (!ok) return;
-    const tx = this.store.payDebtInstallment(id);
+    await s.present();
+    await s.onDidDismiss();
+    if (!chosen) return;
+    const tx = this.store.payDebtInstallment(id, undefined, undefined, cardId);
     const left = d.totalInstallments - d.paidInstallments - 1;
     await this.ui.toast({
       title: left ? 'Parcela paga' : 'Dívida quitada! 🎉',

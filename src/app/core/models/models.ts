@@ -48,6 +48,8 @@ export interface Transaction {
   importId?: string;
   /** parcela de dívida (empréstimo/financiamento) paga por esta transação */
   debtId?: string;
+  /** gerada por uma conta fixa / receita recorrente */
+  recurringId?: string;
   /** ISO date-time */
   date: string;
   paid: boolean;
@@ -137,7 +139,28 @@ export interface Settings {
   hasLoggedBefore?: boolean;
 }
 
-export type DebtKind = 'emprestimo' | 'financiamento' | 'consignado' | 'cheque_especial' | 'outro';
+export type DebtKind = 'emprestimo' | 'financiamento' | 'acordo' | 'consignado' | 'cheque_especial' | 'outro';
+
+/** Conta fixa ou receita recorrente: gera um lançamento pendente todo mês */
+export interface Recurring {
+  id: string;
+  type: TxType;
+  description: string;
+  amount: number;
+  categoryId: string;
+  accountId: string;
+  cardId?: string;
+  /** dia do mês (1–31; meses curtos usam o último dia) */
+  day: number;
+  /** YYYY-MM do primeiro mês */
+  startMonth: string;
+  /** YYYY-MM do último mês (opcional) */
+  endMonth?: string;
+  active: boolean;
+  /** meses em que o lançamento foi excluído pelo usuário (não recriar) */
+  skip?: string[];
+  createdAt: string;
+}
 
 /** Empréstimo, financiamento ou outra dívida parcelada fora do cartão */
 export interface Debt {
@@ -153,6 +176,8 @@ export interface Debt {
   dueDay: number;
   /** conta de onde sai o pagamento */
   accountId: string;
+  /** YYYY-MM da próxima parcela a vencer (avança a cada pagamento) */
+  nextDueMonth?: string;
   /** juros ao mês (%), informativo */
   monthlyRate?: number;
   createdAt: string;
@@ -169,6 +194,7 @@ export interface AppData {
   goals: Goal[];
   cards: CreditCard[];
   debts: Debt[];
+  recurring: Recurring[];
 }
 
 export interface TxFilters {
