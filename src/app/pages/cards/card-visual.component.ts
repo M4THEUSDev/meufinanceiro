@@ -7,6 +7,7 @@ export const CARD_THEMES: Record<CreditCard['theme'], string> = {
   grafite: 'linear-gradient(150deg, #475569 0%, #334155 45%, #0f172a 100%)',
   roxo: 'linear-gradient(150deg, #a78bfa 0%, #7c3aed 50%, #4c1d95 100%)',
   verde: 'linear-gradient(150deg, #5eead4 0%, #14b8a6 45%, #115e59 100%)',
+  xp: 'linear-gradient(150deg, #27272a 0%, #18181b 55%, #000000 100%)',
 };
 
 /** Cartão de crédito visual (carrossel) */

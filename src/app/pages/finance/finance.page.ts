@@ -188,6 +188,10 @@ export class FinancePage {
     await m.present();
   }
 
+  openProjection(): void {
+    void this.router.navigateByUrl('/tabs/mais/previsao');
+  }
+
   openCard(): void {
     void this.router.navigateByUrl('/tabs/mais/cartoes');
   }

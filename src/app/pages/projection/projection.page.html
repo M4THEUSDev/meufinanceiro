@@ -1,0 +1,124 @@
+<ion-header class="ion-no-border" [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/tabs/mais/financas" text="Voltar"></ion-back-button></ion-buttons>
+    <ion-title>Próximos meses</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="mf-page">
+  <ion-header collapse="condense" class="ion-no-border"><ion-toolbar><ion-title size="large">Próximos meses</ion-title></ion-toolbar></ion-header>
+
+  @if (current(); as m) {
+    <div class="body">
+      <!-- Gráfico de sobra por mês (toque para navegar) -->
+      <div class="pad">
+        <div class="mf-card chart">
+          <div class="row-between">
+            <div><p class="t-headline">Sobra prevista por mês</p><p class="t-footnote c-secondary">Toque em um mês para ver o detalhe</p></div>
+          </div>
+          <div class="bars">
+            @for (x of months(); track x.key) {
+              <button class="mf-reset col" type="button" [class.on]="$index === index()" (click)="go($index)" [attr.aria-label]="label(x.key)">
+                <span class="v t-caption2" [class.neg]="x.net < 0">{{ compact(x.net) }}</span>
+                <i [style.height.px]="bar(x.net)" [class.neg]="x.net < 0"></i>
+                <span class="m t-caption2">{{ short(x.key) }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Navegação entre meses -->
+      <div class="pad">
+        <div class="nav">
+          <button class="mf-reset round" type="button" aria-label="Mês anterior" [disabled]="index() === 0" (click)="go(index() - 1)"><ion-icon name="chevron-back"></ion-icon></button>
+          <span class="t-headline">{{ label(m.key) }}</span>
+          <button class="mf-reset round" type="button" aria-label="Próximo mês" [disabled]="index() === months().length - 1" (click)="go(index() + 1)"><ion-icon name="chevron-forward"></ion-icon></button>
+        </div>
+      </div>
+
+      <div class="pad">
+        <div class="grid3">
+          <div class="kpi"><span class="t-caption1 c-secondary">Entra</span><span class="t-headline c-success nowrap">{{ m.income | money: 'int' }}</span></div>
+          <div class="kpi"><span class="t-caption1 c-secondary">Sai</span><span class="t-headline c-danger nowrap">{{ m.expenses | money: 'int' }}</span></div>
+          <div class="kpi"><span class="t-caption1 c-secondary">Sobra</span><span class="t-headline nowrap" [class.c-success]="m.net >= 0" [class.c-danger]="m.net < 0">{{ m.net | money: 'int' }}</span></div>
+        </div>
+        @if (index() === 0) {
+          <p class="note t-footnote c-secondary">Neste mês contam só os lançamentos que ainda vão acontecer — o que já foi pago está no saldo das contas.</p>
+        }
+      </div>
+
+      <div class="pad">
+        <div class="mf-card breakdown">
+          @for (g of [
+            { k: 'fixed', label: 'Contas fixas', v: m.fixed },
+            { k: 'debt', label: 'Parcelas e acordos', v: m.debts },
+            { k: 'card', label: 'Cartões', v: m.cards },
+            { k: 'other', label: 'Outros lançamentos', v: m.other }
+          ]; track g.k) {
+            @if (g.v > 0) {
+              <div class="grp">
+                <div class="row-between"><span class="t-subhead-sb">{{ g.label }}</span><span class="t-footnote-sb">{{ g.v | money }}</span></div>
+                @for (it of m.items; track $index) {
+                  @if (it.kind === g.k) {
+                    <div class="row-between item t-footnote">
+                      <span class="c-secondary ellipsis">{{ it.label }}@if (it.detail) { · {{ it.detail }} }@if (it.estimated) { · <b class="c-warning">estimado</b> }</span>
+                      <span class="nowrap">{{ it.amount | money }}</span>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          }
+          @if (m.income > 0) {
+            <div class="grp">
+              <div class="row-between"><span class="t-subhead-sb">Receitas</span><span class="t-footnote-sb c-success">{{ m.income | money }}</span></div>
+              @for (it of m.items; track $index) {
+                @if (it.kind === 'income') {
+                  <div class="row-between item t-footnote"><span class="c-secondary ellipsis">{{ it.label }}</span><span class="nowrap">{{ it.amount | money }}</span></div>
+                }
+              }
+            </div>
+          }
+          <div class="row-between total">
+            <span class="t-subhead-sb">Saldo previsto no fim de {{ monthName(m.key) }}</span>
+            <span class="t-headline nowrap" [class.c-success]="m.balance >= 0" [class.c-danger]="m.balance < 0">{{ m.balance | money }}</span>
+          </div>
+        </div>
+      </div>
+
+      @if (milestones().length) {
+        <div class="pad">
+          <h2 class="t-title3">Quando as dívidas acabam</h2>
+          <div class="mf-list">
+            @for (d of milestones(); track d.name) {
+              <div class="ms">
+                <span class="mi"><ion-icon name="flag-outline"></ion-icon></span>
+                <span class="grow">
+                  <span class="t-subhead-sb">{{ d.name }}</span>
+                  <span class="t-caption1 c-secondary">Última parcela em {{ monthName(d.lastMonth) }} · a partir de {{ after(d.lastMonth) }} sobra +{{ fmt(d.monthlyFreed) }}/mês</span>
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (store.cards().length) {
+        <div class="pad">
+          <h2 class="t-title3">Compras novas nos cartões</h2>
+          <p class="note t-footnote c-secondary">As faturas futuras já incluem as parcelas lançadas. Diga quanto você costuma gastar a mais por mês em cada cartão para a previsão ficar realista.</p>
+          <div class="mf-list">
+            @for (c of store.cards(); track c.id) {
+              <button class="mf-reset ms" type="button" (click)="editSpend(c.id)">
+                <span class="mi card"><ion-icon name="card-outline"></ion-icon></span>
+                <span class="grow"><span class="t-subhead-sb">{{ c.name }}</span><span class="t-caption1 c-secondary">{{ c.monthlySpendEstimate ? 'Previsto ' + fmt(c.monthlySpendEstimate) + '/mês' : 'Sem compras novas previstas' }}</span></span>
+                <span class="t-footnote-sb c-primary-shade">Alterar</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</ion-content>

@@ -29,3 +29,5 @@ ion-button.mini { min-height: 32px; font-size: 13px; margin: 0; --padding-start:
   &::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0.14; z-index: -1; } }
 .di.card { color: var(--mf-category-moradia); }
 .chev { color: var(--mf-text-tertiary); font-size: 16px; }
+.future { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--mf-radius-lg); background: var(--ion-card-background); box-shadow: var(--mf-elevation-sm); text-align: left; width: 100%;
+  > ion-icon:first-child { font-size: 22px; color: var(--mf-category-reembolso); } }

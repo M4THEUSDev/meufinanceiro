@@ -106,7 +106,9 @@ export interface CreditCard {
   closingDay: number;
   dueDay: number;
   /** gradiente do cartão */
-  theme: 'platinum' | 'roxo' | 'grafite' | 'verde';
+  theme: 'platinum' | 'roxo' | 'grafite' | 'verde' | 'xp';
+  /** previsão de compras novas por mês, além das parcelas já lançadas (usada em Próximos meses) */
+  monthlySpendEstimate?: number;
   accountId: string;
 }
 

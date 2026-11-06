@@ -72,6 +72,7 @@ export class MorePage {
 
   readonly finance: { label: string; icon: string; color: string; url: string; badge?: () => string }[] = [
     { label: 'Ganhos e dívidas', icon: 'swap-vertical-outline', color: 'var(--mf-category-saude)', url: '/tabs/mais/financas' },
+    { label: 'Próximos meses', icon: 'calendar-outline', color: 'var(--mf-category-reembolso)', url: '/tabs/mais/previsao' },
     { label: 'Contas fixas e salário', icon: 'repeat-outline', color: 'var(--mf-category-transporte)', url: '/tabs/mais/recorrentes' },
     { label: 'Minhas contas', icon: 'wallet-outline', color: 'var(--mf-category-educacao)', url: '/tabs/mais/contas' },
     { label: 'Categorias', icon: 'pricetag-outline', color: 'var(--mf-category-alimentacao)', url: '/tabs/mais/categorias' },

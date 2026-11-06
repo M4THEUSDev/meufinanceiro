@@ -14,9 +14,9 @@ export class UpdateService {
     this.sw.versionUpdates.pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY')).subscribe(() => {
       void this.ui.toast({
         title: 'Nova versão disponível',
-        message: 'Toque em Atualizar para usar a versão mais recente.',
+        message: 'Toque em Atualizar para usar a versão mais recente. Se fechar, ela entra na próxima vez que abrir o app.',
         tone: 'info',
-        duration: 10000,
+        duration: 0, // fica na tela até tocar em Atualizar (ou arrastar para fechar)
         action: { text: 'Atualizar', handler: () => document.location.reload() },
       });
     });

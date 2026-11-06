@@ -35,6 +35,7 @@ import { CARD_THEMES, CardVisualComponent } from './card-visual.component';
           @if (submitted() && error()) { <p class="err">{{ error() }}</p> }
         </div>
         <div class="pad"><mf-currency-input [(value)]="limit" tone="neutral" label="Limite total (opcional)" hint="Deixe 0,00 se não quiser acompanhar o limite"></mf-currency-input></div>
+        <div class="pad"><mf-currency-input [(value)]="spend" tone="expense" label="Compras novas previstas por mês" hint="Além das parcelas — usado na previsão dos próximos meses"></mf-currency-input></div>
         <div class="pad">
           <div class="mf-group">
             <label class="mf-row no-lead"><span class="label">Dia de fechamento</span><input class="value" type="number" min="1" max="28" [ngModel]="closingDay()" (ngModelChange)="closingDay.set(+$event)" /></label>
@@ -80,6 +81,7 @@ export class CardFormModal implements OnInit {
   readonly last4 = signal('');
   readonly brand = signal<CreditCard['brand']>('Mastercard');
   readonly limit = signal(0);
+  readonly spend = signal(0);
   readonly closingDay = signal(3);
   readonly dueDay = signal(10);
   readonly theme = signal<CreditCard['theme']>('platinum');
@@ -89,7 +91,7 @@ export class CardFormModal implements OnInit {
   preview(): CreditCard {
     return {
       id: 'preview', name: this.name(), bank: this.bank() || 'Banco', tier: this.tier() || 'Cartão', brand: this.brand(),
-      last4: (this.last4() || '0000').padStart(4, '0'), limit: this.limit(), closingDay: this.closingDay(), dueDay: this.dueDay(), theme: this.theme(), accountId: this.accountId(),
+      last4: (this.last4() || '0000').padStart(4, '0'), limit: this.limit(), monthlySpendEstimate: this.spend() || undefined, closingDay: this.closingDay(), dueDay: this.dueDay(), theme: this.theme(), accountId: this.accountId(),
     };
   }
   setLast4(v: string): void {
@@ -110,7 +112,7 @@ export class CardFormModal implements OnInit {
     const c = this.store.card(this.cardId);
     if (c) {
       this.name.set(c.name); this.bank.set(c.bank); this.tier.set(c.tier); this.last4.set(c.last4); this.brand.set(c.brand);
-      this.limit.set(c.limit); this.closingDay.set(c.closingDay); this.dueDay.set(c.dueDay); this.theme.set(c.theme); this.accountId.set(c.accountId);
+      this.limit.set(c.limit); this.spend.set(c.monthlySpendEstimate ?? 0); this.closingDay.set(c.closingDay); this.dueDay.set(c.dueDay); this.theme.set(c.theme); this.accountId.set(c.accountId);
     } else {
       this.accountId.set(this.store.activeAccounts().find((a) => a.kind === 'corrente' || a.kind === 'digital')?.id ?? '');
     }
