@@ -104,9 +104,19 @@
         </div>
       }
 
-      @if (anyEstimated()) {
+      @if (store.cards().length) {
         <div class="pad">
-          <p class="note t-footnote c-secondary"><ion-icon name="information-circle-outline"></ion-icon> Faturas “estimadas” usam a média das faturas recentes de cada cartão. Quanto mais faturas você importar ou informar, mais precisa fica a previsão.</p>
+          <h2 class="t-title3">Compras novas nos cartões</h2>
+          <p class="note t-footnote c-secondary">As faturas futuras já incluem as parcelas lançadas. Diga quanto você costuma gastar a mais por mês em cada cartão para a previsão ficar realista.</p>
+          <div class="mf-list">
+            @for (c of store.cards(); track c.id) {
+              <button class="mf-reset ms" type="button" (click)="editSpend(c.id)">
+                <span class="mi card"><ion-icon name="card-outline"></ion-icon></span>
+                <span class="grow"><span class="t-subhead-sb">{{ c.name }}</span><span class="t-caption1 c-secondary">{{ c.monthlySpendEstimate ? 'Previsto ' + fmt(c.monthlySpendEstimate) + '/mês' : 'Sem compras novas previstas' }}</span></span>
+                <span class="t-footnote-sb c-primary-shade">Alterar</span>
+              </button>
+            }
+          </div>
         </div>
       }
     </div>

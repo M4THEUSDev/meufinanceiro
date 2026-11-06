@@ -37,7 +37,7 @@ export interface DebtMilestone {
 /**
  * Previsão dos próximos meses a partir do que o app já sabe:
  * lançamentos do mês, contas fixas/receitas recorrentes, parcelas de dívidas (até acabarem)
- * e faturas dos cartões (parcelas agendadas; sem compras lançadas, usa a média das faturas).
+ * e faturas dos cartões (parcelas já lançadas + compras novas previstas que o usuário define por cartão).
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectionService {
@@ -58,20 +58,6 @@ export class ProjectionService {
     return Array.from({ length: remaining }, (_, i) => addMonths(first, i));
   }
 
-  /** média das faturas dos últimos meses com dados (por mês de vencimento) */
-  cardAverage(card: CreditCard): number {
-    const cur = monthKey(new Date());
-    const totals = new Map<string, number>();
-    for (const t of this.store.transactions()) {
-      if (t.cardId !== card.id || t.type !== 'expense' || t.installment) continue;
-      const due = this.cardDueMonth(card, t.date);
-      if (due > addMonths(cur, 1) || due < addMonths(cur, -3)) continue;
-      totals.set(due, (totals.get(due) ?? 0) + t.amount);
-    }
-    const vals = [...totals.values()].filter((v) => v > 0);
-    return vals.length ? round2(vals.reduce((s, v) => s + v, 0) / vals.length) : 0;
-  }
-
   readonly months = computed<MonthProjection[]>(() => this.project(12));
 
   readonly milestones = computed<DebtMilestone[]>(() =>
@@ -89,7 +75,6 @@ export class ProjectionService {
     const debts = this.store.debts();
     const cards = this.store.cards();
     const schedules = new Map(debts.map((d) => [d.id, this.debtSchedule(d)]));
-    const avg = new Map(cards.map((c) => [c.id, this.cardAverage(c)]));
     const out: MonthProjection[] = [];
     let balance = this.store.totalBalance();
     // pendências já vencidas entram no primeiro mês da previsão
@@ -131,13 +116,13 @@ export class ProjectionService {
           .reduce((s, r) => s + r.amount, 0);
         const firstDue = monthKey(this.store.nextDueDate(c));
         const base = round2(known + fixedOnCard);
-        const estimate = avg.get(c.id) ?? 0;
-        // faturas futuras sem compras lançadas: usa a média (as parcelas já conhecidas entram no mínimo)
-        const useAvg = k > firstDue && estimate > base;
-        const amount = useAvg ? estimate : base;
-        if (amount <= 0) continue;
-        cardsEstimated ||= useAvg;
-        items.push({ label: `Fatura ${c.name}`, amount, kind: 'card', estimated: useAvg });
+        // faturas ainda abertas/futuras: parcelas já lançadas + compras novas previstas (definidas pelo usuário)
+        const extra = k > firstDue ? round2(c.monthlySpendEstimate ?? 0) : 0;
+        if (base > 0) items.push({ label: `Fatura ${c.name}`, amount: base, kind: 'card' });
+        if (extra > 0) {
+          cardsEstimated = true;
+          items.push({ label: `${c.name} · compras novas`, amount: extra, kind: 'card', estimated: true });
+        }
       }
       const sum = (kind: ProjectionItem['kind']) => round2(items.filter((x) => x.kind === kind).reduce((s, x) => s + x.amount, 0));
       const income = sum('income');

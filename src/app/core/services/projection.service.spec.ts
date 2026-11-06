@@ -50,3 +50,23 @@ describe('ProjectionService', () => {
     expect(m[2].balance).toBeCloseTo(m[1].balance + m[2].net, 2);
   });
 });
+
+describe('ProjectionService · cartões', () => {
+  it('fatura futura = parcelas lançadas + compras novas previstas', () => {
+    TestBed.configureTestingModule({});
+    const store = TestBed.inject(StoreService);
+    const proj = TestBed.inject(ProjectionService);
+    const cur = monthKey(new Date());
+    const [y, m] = addMonths(cur, 1).split('-').map(Number);
+    const d = store.data();
+    store.importJson(JSON.stringify({
+      ...d, debts: [], recurring: [], goals: [], budgets: [],
+      cards: [{ id: 'k1', name: 'PF', bank: 'Nubank', tier: '', brand: 'Mastercard', last4: '0000', limit: 0, closingDay: 6, dueDay: 13, theme: 'roxo', accountId: 'a_nubank', monthlySpendEstimate: 300 }],
+      // parcela lançada no dia 7 do mês que vem → fatura que vence dois meses à frente
+      transactions: [{ id: 't1', type: 'expense', description: 'Terabyte', amount: 296.54, categoryId: 'c_compras', accountId: 'a_nubank', cardId: 'k1', date: new Date(y, m - 1, 7, 12).toISOString(), paid: true, createdAt: '', installment: { group: 'g', index: 8, total: 12 } }],
+    }));
+    const p = proj.project(4);
+    expect(p[2].cards).toBeCloseTo(296.54 + 300, 2);
+    expect(p[2].cardsEstimated).toBeTrue();
+  });
+});

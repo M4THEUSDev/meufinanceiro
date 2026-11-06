@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { ProjectionService } from '../../core/services/projection.service';
 import { StoreService } from '../../core/services/store.service';
-import { HIDDEN_MASK, MONTHS, MONTHS_SHORT, addMonths, cap, compact, money, monthLabel, parseMonthKey } from '../../core/utils/format';
+import { HIDDEN_MASK, MONTHS, MONTHS_SHORT, addMonths, cap, compact, money, monthLabel, parseMoney, parseMonthKey } from '../../core/utils/format';
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
 
 /** Próximos meses — previsão mês a mês e quando cada dívida acaba */
@@ -16,6 +16,7 @@ import { MoneyPipe } from '../../shared/pipes/money.pipe';
 export class ProjectionPage {
   protected readonly store = inject(StoreService);
   private readonly proj = inject(ProjectionService);
+  private readonly alert = inject(AlertController);
 
   readonly months = this.proj.months;
   readonly milestones = this.proj.milestones;
@@ -51,6 +52,22 @@ export class ProjectionPage {
   }
   fmt(v: number): string {
     return this.store.hidden() ? HIDDEN_MASK : money(v);
+  }
+
+  async editSpend(cardId: string): Promise<void> {
+    const c = this.store.card(cardId);
+    if (!c) return;
+    const a = await this.alert.create({
+      header: c.name,
+      message: 'Quanto você costuma gastar por mês neste cartão, além das parcelas já lançadas?',
+      inputs: [{ name: 'v', type: 'text', placeholder: '0,00', value: c.monthlySpendEstimate ? c.monthlySpendEstimate.toFixed(2).replace('.', ',') : '', attributes: { inputmode: 'decimal' } }],
+      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Salvar', role: 'confirm' }],
+    });
+    await a.present();
+    const { role, data } = await a.onDidDismiss();
+    if (role !== 'confirm') return;
+    const v = parseMoney(data?.values?.v ?? '');
+    this.store.updateCard(c.id, { monthlySpendEstimate: v > 0 ? v : undefined });
   }
 
   go(i: number): void {
