@@ -10,6 +10,7 @@ import { DashboardSkeletonComponent } from '../../shared/components/dashboard-sk
 import { BillItemComponent } from '../../shared/components/bill-item.component';
 import { DonutComponent } from '../../shared/components/donut.component';
 import { GoalCardComponent } from '../../shared/components/goal-card.component';
+import { InvestmentItemComponent } from '../../shared/components/investment-item.component';
 import { MonthSelectorComponent } from '../../shared/components/month-selector.component';
 import { NotificationsModal } from '../../shared/components/notifications.modal';
 import { ProgressBarComponent } from '../../shared/components/progress-bar.component';
@@ -26,7 +27,7 @@ import { openTransactionForm } from '../transactions/transaction-form.modal';
   imports: [
     IonHeader, IonToolbar, IonContent, IonIcon, IonRefresher, IonRefresherContent, MoneyPipe,
     BalanceCardComponent, SummaryCardComponent, ProgressBarComponent, BarChartComponent, SparklineComponent, DonutComponent,
-    SectionHeaderComponent, TransactionItemComponent, BillItemComponent, GoalCardComponent, MonthSelectorComponent, DashboardSkeletonComponent,
+    SectionHeaderComponent, TransactionItemComponent, BillItemComponent, GoalCardComponent, MonthSelectorComponent, DashboardSkeletonComponent, InvestmentItemComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
@@ -112,6 +113,8 @@ export class DashboardPage {
   readonly toReceive = computed(() => round2(this.store.receivables().filter((t) => monthKey(new Date(t.date)) <= this.month()).reduce((s, t) => s + t.amount, 0)));
   readonly toPay = computed(() => round2(this.store.bills().filter((b) => monthKey(b.due) <= this.month()).reduce((s, b) => s + b.amount, 0)));
   readonly goals = computed(() => this.store.goals());
+  readonly invTotals = this.store.investmentTotals;
+  readonly investments = computed(() => [...this.store.investments()].sort((a, b) => Number(b.mine) - Number(a.mine) || this.store.investmentBalance(b) - this.store.investmentBalance(a)));
   readonly notificationCount = computed(() => this.store.bills().filter((b) => b.status !== 'later').length);
 
   pct = pct;

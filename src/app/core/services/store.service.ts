@@ -1,7 +1,7 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import {
-  Account, AppData, Budget, Category, CreditCard, Debt, Goal, GoalContribution, Recurring, Settings, Transaction, TxFilters, TxType,
+  Account, AppData, Budget, Category, CreditCard, Debt, Goal, GoalContribution, Investment, InvestmentMove, Recurring, Settings, Transaction, TxFilters, TxType,
 } from '../models/models';
 import { addMonths, daysBetween, monthKey, round2, startOfDay, uid } from '../utils/format';
 import { DATA_VERSION, DEFAULT_CATEGORIES, buildSeed } from './seed';
@@ -63,6 +63,14 @@ export class StoreService {
   readonly cards = computed(() => this._data().cards);
   readonly debts = computed(() => this._data().debts ?? []);
   readonly recurring = computed(() => this._data().recurring ?? []);
+  readonly investments = computed(() => this._data().investments ?? []);
+  /** total investido: o que é seu e o que é de outras pessoas */
+  readonly investmentTotals = computed(() => {
+    const list = this.investments();
+    const mine = round2(list.filter((i) => i.mine).reduce((s, i) => s + this.investmentBalance(i), 0));
+    const others = round2(list.filter((i) => !i.mine).reduce((s, i) => s + this.investmentBalance(i), 0));
+    return { mine, others, total: round2(mine + others) };
+  });
   readonly hidden = computed(() => this.settings().hideValues);
 
   private readonly catMap = computed(() => new Map(this._data().categories.map((c) => [c.id, c])));
@@ -145,8 +153,8 @@ export class StoreService {
     return { cards, loans, total };
   });
 
-  /** patrimônio líquido = saldo das contas + metas guardadas fora das contas − dívidas */
-  readonly netWorth = computed(() => round2(this.totalBalance() - this.debtSummary().total));
+  /** patrimônio líquido = saldo das contas + seus investimentos − dívidas */
+  readonly netWorth = computed(() => round2(this.totalBalance() + this.investmentTotals().mine - this.debtSummary().total));
 
   constructor() {
     effect(() => {
@@ -191,6 +199,7 @@ export class StoreService {
       cards: (d.cards ?? []).map((c) => ({ ...c, bank: c.bank ?? c.name, tier: c.tier ?? '' })),
       debts: d.debts ?? [],
       recurring: d.recurring ?? [],
+      investments: d.investments ?? [],
     };
   }
 
@@ -680,6 +689,51 @@ export class StoreService {
     }));
   }
 
+  investment(id: string | undefined): Investment | undefined {
+    return id ? this.investments().find((i) => i.id === id) : undefined;
+  }
+
+  /** saldo = inicial + aportes + rendimentos − resgates (rendimento pode ser negativo) */
+  investmentBalance(i: Investment): number {
+    return round2(i.moves.reduce((s, m) => s + (m.type === 'resgate' ? -m.amount : m.amount), i.initialAmount));
+  }
+
+  addInvestment(i: Omit<Investment, 'id' | 'createdAt' | 'moves'> & { moves?: InvestmentMove[] }): Investment {
+    const inv: Investment = { ...i, initialAmount: round2(i.initialAmount), moves: i.moves ?? [], id: uid('i'), createdAt: new Date().toISOString() };
+    this.patch((x) => ({ ...x, investments: [...(x.investments ?? []), inv] }));
+    return inv;
+  }
+
+  updateInvestment(id: string, p: Partial<Investment>): void {
+    this.patch((x) => ({ ...x, investments: (x.investments ?? []).map((i) => (i.id === id ? { ...i, ...p, id } : i)) }));
+  }
+
+  deleteInvestment(id: string): void {
+    this.patch((x) => ({ ...x, investments: (x.investments ?? []).filter((i) => i.id !== id) }));
+  }
+
+  addInvestmentMove(id: string, m: Omit<InvestmentMove, 'id'>): InvestmentMove | undefined {
+    const inv = this.investment(id);
+    if (!inv || !m.amount) return undefined;
+    const move: InvestmentMove = { ...m, amount: round2(m.amount), id: uid('im') };
+    this.updateInvestment(id, { moves: [...inv.moves, move] });
+    return move;
+  }
+
+  removeInvestmentMove(id: string, moveId: string): void {
+    const inv = this.investment(id);
+    if (inv) this.updateInvestment(id, { moves: inv.moves.filter((m) => m.id !== moveId) });
+  }
+
+  /** registra a diferença entre o saldo informado e o calculado como rendimento */
+  setInvestmentBalance(id: string, value: number, date = new Date().toISOString()): InvestmentMove | undefined {
+    const inv = this.investment(id);
+    if (!inv) return undefined;
+    const diff = round2(value - this.investmentBalance(inv));
+    if (!diff) return undefined;
+    return this.addInvestmentMove(id, { type: 'rendimento', amount: diff, date, note: diff > 0 ? 'Rendimento' : 'Desvalorização' });
+  }
+
   addDebt(d: Omit<Debt, 'id' | 'createdAt'>): Debt {
     const debt: Debt = { ...d, installmentAmount: round2(d.installmentAmount), id: uid('d'), createdAt: new Date().toISOString() };
     this.patch((x) => ({ ...x, debts: [...(x.debts ?? []), debt] }));
@@ -834,6 +888,7 @@ export class StoreService {
       goals: [],
       cards: [],
       debts: [],
+      investments: [],
       recurring: [],
       categories: seed.categories.filter((c) => !c.custom),
     });

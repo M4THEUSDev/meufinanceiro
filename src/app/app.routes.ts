@@ -20,6 +20,8 @@ export const routes: Routes = [
       { path: 'mais/contas', loadComponent: () => import('./pages/accounts/accounts.page').then((m) => m.AccountsPage) },
       { path: 'mais/metas', loadComponent: () => import('./pages/goals/goals.page').then((m) => m.GoalsPage) },
       { path: 'mais/metas/:id', loadComponent: () => import('./pages/goals/goal-detail.page').then((m) => m.GoalDetailPage) },
+      { path: 'mais/investimentos', loadComponent: () => import('./pages/investments/investments.page').then((m) => m.InvestmentsPage) },
+      { path: 'mais/investimentos/:id', loadComponent: () => import('./pages/investments/investment-detail.page').then((m) => m.InvestmentDetailPage) },
       { path: 'mais/financas', loadComponent: () => import('./pages/finance/finance.page').then((m) => m.FinancePage) },
       { path: 'mais/previsao', loadComponent: () => import('./pages/projection/projection.page').then((m) => m.ProjectionPage) },
       { path: 'mais/recorrentes', loadComponent: () => import('./pages/recurring/recurring.page').then((m) => m.RecurringPage) },

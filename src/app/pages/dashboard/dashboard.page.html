@@ -160,6 +160,31 @@
         </div>
       }
     </div>
+
+    <!-- Investimentos -->
+    <div class="mf-section">
+      <mf-section-header title="Investimentos" action="Ver todos" (actionClick)="go('/tabs/mais/investimentos')"></mf-section-header>
+      @if (investments().length) {
+        <div class="mf-card inv-total">
+          <div class="grow"><span class="t-footnote c-secondary">Total investido</span><span class="t-title2 nowrap">{{ invTotals().total | money }}</span></div>
+          @if (invTotals().others) {
+            <div class="split">
+              <span class="t-caption1 c-secondary">Seu <b>{{ invTotals().mine | money }}</b></span>
+              <span class="t-caption1 c-secondary">Terceiros <b>{{ invTotals().others | money }}</b></span>
+            </div>
+          }
+        </div>
+        <div class="mf-list">
+          @for (i of investments(); track i.id) { <mf-investment-item [inv]="i" (click)="go('/tabs/mais/investimentos/' + i.id)"></mf-investment-item> }
+        </div>
+      } @else {
+        <div class="mf-card mf-empty">
+          <ion-icon name="trending-up-outline"></ion-icon>
+          <p class="t-footnote">Cadastre seus investimentos para acompanhar o saldo e os resgates.</p>
+          <button class="mf-reset t-subhead-sb link" type="button" (click)="go('/tabs/mais/investimentos')">Adicionar investimento</button>
+        </div>
+      }
+    </div>
   </div>
   }
 </ion-content>
