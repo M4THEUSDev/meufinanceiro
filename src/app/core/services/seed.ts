@@ -1,7 +1,7 @@
 import { Account, AppData, Budget, Category, CreditCard, Debt, Goal, Transaction } from '../models/models';
 import { addMonths, monthKey, round2 } from '../utils/format';
 
-export const DATA_VERSION = 4;
+export const DATA_VERSION = 5;
 
 export const DEFAULT_CATEGORIES: Category[] = [
   // Despesas (padrão)
@@ -315,6 +315,17 @@ export function buildSeed(now = new Date()): AppData {
     goals,
     cards,
     debts,
+    investments: [
+      {
+        id: 'i_tesouro', name: 'Tesouro Selic', institution: 'XP', mine: true, color: 'rendimentos', icon: 'trending-up-outline',
+        initialAmount: 8000, initialDate: new Date(now.getFullYear(), now.getMonth() - 3, 2).toISOString(), createdAt: created,
+        moves: [
+          { id: 'im_1', type: 'aporte', amount: 500, date: new Date(now.getFullYear(), now.getMonth() - 2, 5).toISOString() },
+          { id: 'im_2', type: 'rendimento', amount: 212.4, date: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString() },
+          { id: 'im_3', type: 'resgate', amount: 300, date: new Date(now.getFullYear(), now.getMonth() - 1, 18).toISOString(), note: 'Conserto do carro' },
+        ],
+      },
+    ],
     recurring: [
       { id: 'r_salario', type: 'income', description: 'Salário — Acme Ltda', amount: 8650, categoryId: 'c_salario', accountId: 'a_itau', day: 5, startMonth: addMonths(curKey, 1), active: true, createdAt: created },
       { id: 'r_internet', type: 'expense', description: 'Internet Fibra', amount: 119.9, categoryId: 'c_assinaturas', accountId: 'a_itau', day: Math.min(28, today + 2), startMonth: addMonths(curKey, 1), active: true, createdAt: created },

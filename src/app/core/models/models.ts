@@ -190,6 +190,37 @@ export interface Debt {
   notes?: string;
 }
 
+export type InvestmentMoveType = 'aporte' | 'resgate' | 'rendimento';
+
+/** movimentação de um investimento (valor sempre positivo; o tipo define o sinal) */
+export interface InvestmentMove {
+  id: string;
+  type: InvestmentMoveType;
+  amount: number;
+  /** ISO */
+  date: string;
+  note?: string;
+}
+
+/** Investimento acompanhado à parte das contas (CDB, Tesouro, ações, cofrinho…) */
+export interface Investment {
+  id: string;
+  name: string;
+  /** onde está aplicado, ex.: "Nubank", "XP" */
+  institution?: string;
+  /** false = dinheiro de outra pessoa que você administra (não entra no seu patrimônio) */
+  mine: boolean;
+  color: CategoryColor;
+  icon: string;
+  /** saldo quando começou a acompanhar */
+  initialAmount: number;
+  /** ISO da data do saldo inicial */
+  initialDate: string;
+  moves: InvestmentMove[];
+  notes?: string;
+  createdAt: string;
+}
+
 export interface AppData {
   version: number;
   settings: Settings;
@@ -201,6 +232,7 @@ export interface AppData {
   cards: CreditCard[];
   debts: Debt[];
   recurring: Recurring[];
+  investments: Investment[];
 }
 
 export interface TxFilters {

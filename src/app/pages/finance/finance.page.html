@@ -17,6 +17,7 @@
         <span class="t-amount-large nowrap">{{ store.netWorth() | money }}</span>
         <div class="net-kv">
           <div><span class="t-caption1">Saldo em contas</span><span class="t-subhead-sb">{{ store.totalBalance() | money }}</span></div>
+          @if (store.investmentTotals().mine) { <div><span class="t-caption1">Investimentos</span><span class="t-subhead-sb">{{ store.investmentTotals().mine | money }}</span></div> }
           <div><span class="t-caption1">Dívidas</span><span class="t-subhead-sb">{{ -debts().total | money }}</span></div>
         </div>
       </div>

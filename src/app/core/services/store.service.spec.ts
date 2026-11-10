@@ -97,7 +97,7 @@ describe('StoreService · dívidas e importação', () => {
     const d = store.debt('d_carro')!;
     const loan = store.debtSummary().loans.find((l) => l.id === 'd_carro')!;
     expect(loan.total).toBeCloseTo((d.totalInstallments - d.paidInstallments) * d.installmentAmount, 2);
-    expect(store.netWorth()).toBeCloseTo(store.totalBalance() - store.debtSummary().total, 2);
+    expect(store.netWorth()).toBeCloseTo(store.totalBalance() + store.investmentTotals().mine - store.debtSummary().total, 2);
   });
 
   it('importação ignora lançamentos repetidos', () => {
@@ -154,5 +154,22 @@ describe('StoreService · saldo devedor informado', () => {
     const l = store.debtSummary().loans.find((x) => x.id === d.id)!;
     expect(l.total).toBe(3042.74);
     expect(l.byInstallments).toBe(5770);
+  });
+
+  it('investimento: saldo considera resgates e entra no patrimônio só se for seu', () => {
+    TestBed.configureTestingModule({});
+    const store = TestBed.inject(StoreService);
+    const net0 = store.netWorth();
+    const mae = store.addInvestment({ name: 'Investimento Mãe', mine: false, icon: 'heart-outline', color: 'lazer', initialAmount: 18787.73, initialDate: '2026-09-30T12:00:00.000Z' });
+    store.addInvestmentMove(mae.id, { type: 'resgate', amount: 200, date: '2026-10-01T12:00:00.000Z' });
+    store.addInvestmentMove(mae.id, { type: 'resgate', amount: 1000, date: '2026-10-16T12:00:00.000Z' });
+    expect(store.investmentBalance(store.investment(mae.id)!)).toBe(17587.73);
+    expect(store.netWorth()).toBe(net0);
+    const meu = store.addInvestment({ name: 'Meu investimento', mine: true, icon: 'trending-up-outline', color: 'rendimentos', initialAmount: 12347.12, initialDate: '2026-11-10T12:00:00.000Z' });
+    expect(store.netWorth()).toBe(Math.round((net0 + 12347.12) * 100) / 100);
+    const m = store.setInvestmentBalance(meu.id, 12400);
+    expect(m?.type).toBe('rendimento');
+    expect(m?.amount).toBe(52.88);
+    expect(store.investmentBalance(store.investment(meu.id)!)).toBe(12400);
   });
 });
